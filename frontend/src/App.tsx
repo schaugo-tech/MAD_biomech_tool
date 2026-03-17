@@ -29,18 +29,26 @@ export default function App() {
   const [weights, setWeights] = useState<WeightConfig>(defaultWeights)
   const [analysis, setAnalysis] = useState<AnalysisResponse | undefined>(undefined)
   const [loading, setLoading] = useState(false)
+  const [metaError, setMetaError] = useState<string | null>(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchMeta().then((data) => {
-      setMeta(data)
-      const defaults = data?.defaults
-      if (defaults) {
-        setSelectedMp(defaults.selected_mp)
-        setSelectedVo(defaults.selected_vo)
-        setConstraints(defaults.constraints)
-        setWeights(defaults.weights)
-      }
-    })
+    fetchMeta()
+      .then((data) => {
+        setMeta(data)
+        setMetaError(null)
+        const defaults = data?.defaults
+        if (defaults) {
+          setSelectedMp(defaults.selected_mp)
+          setSelectedVo(defaults.selected_vo)
+          setConstraints(defaults.constraints)
+          setWeights(defaults.weights)
+        }
+      })
+      .catch((err) => {
+        console.error(err)
+        setMetaError('元信息读取失败，请确认后端 /api/study/meta 可访问。')
+      })
   }, [])
 
   const normalizedWeights = useMemo(() => {
@@ -56,6 +64,7 @@ export default function App() {
 
   const runAnalysis = async () => {
     setLoading(true)
+    setAnalysisError(null)
     try {
       const result = await analyzeStudy({
         constraints,
@@ -66,6 +75,10 @@ export default function App() {
         grid_step_vo: 0.25,
       })
       setAnalysis(result)
+    } catch (err) {
+      console.error(err)
+      setAnalysis(undefined)
+      setAnalysisError('分析结果拉取失败，请确认后端 /api/study/analyze 正常。')
     } finally {
       setLoading(false)
     }
@@ -107,6 +120,7 @@ export default function App() {
           <div>{meta?.study_name ?? '正在读取元信息...'}</div>
           {meta?.data_file ? <div className="header-sub">数据源：{meta.data_file}</div> : null}
           {meta?.fit_stats ? <div className="header-sub">拟合R²：TMJ {meta.fit_stats.tmj.r2.toFixed(3)} / PDL-L {meta.fit_stats.pdl_lower.r2.toFixed(3)} / PDL-U {meta.fit_stats.pdl_upper.r2.toFixed(3)}</div> : null}
+          {metaError ? <div className="header-error">{metaError}</div> : null}
         </div>
       </header>
 
@@ -131,6 +145,7 @@ export default function App() {
           <div className="scene-panel">
             <AnatomyScene selectedMp={selectedMp} selectedVo={selectedVo} />
           </div>
+          {analysisError ? <div className="panel-inline-error">{analysisError}</div> : null}
           <ChartsPanel analysis={analysis} selectedMp={selectedMp} selectedVo={selectedVo} onPickPoint={(mp, vo) => { setSelectedMp(mp); setSelectedVo(vo) }} />
         </section>
 

@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber'
-import { Grid, Html, OrbitControls, useGLTF } from '@react-three/drei'
+import { ArcballControls, Bounds, GizmoHelper, GizmoViewcube, Grid, Html, useGLTF } from '@react-three/drei'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import * as THREE from 'three'
 
@@ -22,12 +22,8 @@ function buildMaterial(item: ManifestItem) {
     transparent: item.opacity < 1,
     opacity: item.opacity,
   }
-  if (item.style === 'Wireframe') {
-    return new THREE.MeshBasicMaterial({ ...common, wireframe: true })
-  }
-  if (item.style === 'Physical') {
-    return new THREE.MeshPhysicalMaterial({ ...common, roughness: 0.65, metalness: 0.1, clearcoat: 0.2 })
-  }
+  if (item.style === 'Wireframe') return new THREE.MeshBasicMaterial({ ...common, wireframe: true })
+  if (item.style === 'Physical') return new THREE.MeshPhysicalMaterial({ ...common, roughness: 0.65, metalness: 0.1, clearcoat: 0.2 })
   return new THREE.MeshStandardMaterial({ ...common, roughness: 0.7, metalness: 0.12 })
 }
 
@@ -43,10 +39,7 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
         obj.receiveShadow = true
       }
     })
-    if (withLocalAxes) {
-      const helper = new THREE.AxesHelper(0.85)
-      cloned.add(helper)
-    }
+    if (withLocalAxes) cloned.add(new THREE.AxesHelper(0.85))
     return cloned
   }, [gltf.scene, item, withLocalAxes])
 
@@ -65,10 +58,9 @@ function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: 
         const offset: [number, number, number] = isMandibleGroup ? jawOffset : [0, 0, 0]
         return <ModelPart key={item.file} item={item} offset={offset} withLocalAxes={item.file.includes('mandible')} />
       })}
-
       <axesHelper args={[1.4]} />
       <Html position={[0, 2.6, 0]} center>
-        <div className="scene-badge">MP {selectedMp.toFixed(1)}% · VO {selectedVo.toFixed(2)} mm · 含全局/下颌局部坐标系</div>
+        <div className="scene-badge">Arcball + 正交视图 · 点击右下方视图立方体可切换前后左右</div>
       </Html>
     </group>
   )
@@ -78,22 +70,29 @@ export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
   const [manifest, setManifest] = useState<ManifestItem[]>([])
 
   useEffect(() => {
-    fetch('/models/manifest.json').then((res) => res.json()).then((data) => {
-      setManifest(data.files ?? [])
-    })
+    fetch('/models/manifest.json').then((res) => res.json()).then((data) => setManifest(data.files ?? []))
   }, [])
 
   return (
-    <div className="scene-wrap">
-      <Canvas camera={{ position: [0, 2.8, 7.5], fov: 45 }} shadows>
-        <ambientLight intensity={0.9} />
-        <directionalLight position={[4, 8, 5]} intensity={1.1} castShadow />
-        <directionalLight position={[-5, 4, -5]} intensity={0.45} />
+    <div className="scene-wrap scene-wrap--bright">
+      <Canvas orthographic camera={{ position: [8, 6, 8], zoom: 85 }} shadows>
+        <ambientLight intensity={1.1} />
+        <directionalLight position={[6, 10, 7]} intensity={1.15} castShadow />
+        <directionalLight position={[-6, 5, -7]} intensity={0.55} />
+
         <Suspense fallback={null}>
-          {manifest.length > 0 ? <AnatomyModel selectedMp={selectedMp} selectedVo={selectedVo} manifest={manifest} /> : null}
+          {manifest.length > 0 ? (
+            <Bounds fit clip observe margin={1.18}>
+              <AnatomyModel selectedMp={selectedMp} selectedVo={selectedVo} manifest={manifest} />
+            </Bounds>
+          ) : null}
         </Suspense>
+
         <Grid args={[12, 12]} cellSize={0.8} cellThickness={0.5} sectionSize={2} sectionThickness={1} fadeDistance={18} />
-        <OrbitControls makeDefault enablePan enableRotate enableZoom />
+        <ArcballControls makeDefault enablePan enableRotate enableZoom />
+        <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
+          <GizmoViewcube />
+        </GizmoHelper>
       </Canvas>
     </div>
   )

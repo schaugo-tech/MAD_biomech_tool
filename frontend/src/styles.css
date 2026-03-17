@@ -36,6 +36,7 @@ button, input { font: inherit; }
 .btn-primary { background: linear-gradient(180deg, #3b7df5, #2b62cb); border-color: rgba(255,255,255,0.14); }
 .scene-panel { background: linear-gradient(180deg, rgba(19,29,49,0.96), rgba(13,23,39,0.96)); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin-bottom: 16px; min-height: 400px; }
 .scene-wrap { height: 420px; }
+.scene-wrap--bright { background: radial-gradient(circle at 20% 20%, #f5f9ff 0%, #dfeeff 35%, #cfe3ff 65%, #bdd9ff 100%); }
 .scene-badge { background: rgba(9,17,31,0.84); color: #eef4ff; padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14); font-size: 12px; white-space: nowrap; }
 .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -59,3 +60,6 @@ button, input { font: inherit; }
 
 .surface3d-wrap { height: 320px; position: relative; }
 .surface3d-title { position: absolute; right: 10px; top: 8px; z-index: 2; font-size: 12px; color: var(--muted); background: rgba(7,16,28,0.7); padding: 4px 8px; border-radius: 8px; }
+
+.header-error { font-size: 12px; color: #ffd4d4; margin-top: 6px; }
+.panel-inline-error { margin: 0 0 12px; padding: 10px 12px; border: 1px solid rgba(255,107,107,0.45); border-radius: 12px; color: #ffd3d3; background: rgba(120,22,22,0.22); }
