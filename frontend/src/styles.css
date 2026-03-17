@@ -46,3 +46,11 @@ button, input { font: inherit; }
 .selected-table { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; color: #d6e4ff; }
 @media (max-width: 1480px) { .app-grid { grid-template-columns: 280px minmax(0, 1fr); } .right-col { grid-column: 1 / -1; position: static; } }
 @media (max-width: 1080px) { .app-grid { grid-template-columns: 1fr; } .left-col, .right-col { position: static; } .chart-grid { grid-template-columns: 1fr; } }
+
+
+.scope-list { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 8px; font-size: 13px; line-height: 1.5; }
+.table-scroll { overflow: auto; }
+.result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.result-table th, .result-table td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; white-space: nowrap; }
+.result-table th { color: #c3d2f8; font-weight: 600; }
+.result-table td { color: #dfe8ff; }

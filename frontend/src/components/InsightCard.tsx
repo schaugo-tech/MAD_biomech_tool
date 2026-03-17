@@ -45,6 +45,15 @@ export default function InsightCard({ selected, candidates, interpretation, onEx
           {candidates.length === 0 ? <div className="compact-note">当前阈值下没有可行点。</div> : null}
         </div>
       </PanelCard>
+
+      <PanelCard title="当前版本边界">
+        <ul className="scope-list">
+          <li>✅ 包含：3D 查看/拖动、图表联动、参数调节、报告导出。</li>
+          <li>✅ 包含：基于预置研究数据的推荐方案与解释。</li>
+          <li>❌ 暂不包含：用户系统、在线病例存储、多人协作。</li>
+          <li>❌ 暂不包含：医院真实数据接入、复杂后台管理。</li>
+        </ul>
+      </PanelCard>
     </div>
   )
 }

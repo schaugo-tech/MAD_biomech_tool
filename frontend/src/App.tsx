@@ -100,8 +100,8 @@ export default function App() {
       <header className="app-header">
         <div>
           <div className="eyebrow">apps.schaugo.com / 研究型工具原型</div>
-          <h1>MAD 生物力学交互式设计工具</h1>
-          <p>前后端分离的轻量骨架。图表先多做，后面再砍，完全符合你说的那种“先看再改”的项目气质。</p>
+          <h1>MAD 生物力学展示与决策工具</h1>
+          <p>预置研究数据驱动的交互式工具：支持 3D 模型查看、MP/VO 调节、结果图联动、推荐方案输出、指标解释与基础报告导出。</p>
         </div>
         <div className="header-note">{meta?.study_name ?? '正在读取元信息...'}</div>
       </header>

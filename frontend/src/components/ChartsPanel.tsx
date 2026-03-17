@@ -30,6 +30,10 @@ export default function ChartsPanel({ analysis, selectedMp, selectedVo, onPickPo
   const tmjMap = matrixFromGrid(grid, 'tmj')
   const pdlMap = matrixFromGrid(grid, 'pdl_lower')
 
+  const topRows = [...grid]
+    .sort((a, b) => b.overall_score - a.overall_score)
+    .slice(0, 8)
+
   const limitingFactorMap = {
     'OK': 0,
     '关节盘应力': 1,
@@ -153,6 +157,32 @@ export default function ChartsPanel({ analysis, selectedMp, selectedVo, onPickPo
       <PanelCard title="单参数趋势图">
         <ReactECharts option={trendOption} style={{ height: 320 }} />
       </PanelCard>
+
+      <PanelCard title="候选数据表（Top 8）">
+        <div className="table-scroll">
+          <table className="result-table">
+            <thead>
+              <tr>
+                <th>#</th><th>MP%</th><th>VO(mm)</th><th>评分</th><th>TMJ</th><th>PDL下</th><th>限制因子</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topRows.map((r, idx) => (
+                <tr key={`${r.mp}-${r.vo}-${idx}`}>
+                  <td>{idx + 1}</td>
+                  <td>{r.mp.toFixed(1)}</td>
+                  <td>{r.vo.toFixed(2)}</td>
+                  <td>{r.overall_score.toFixed(3)}</td>
+                  <td>{r.tmj.toFixed(2)}</td>
+                  <td>{r.pdl_lower.toFixed(2)}</td>
+                  <td>{r.limiting_factor}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </PanelCard>
+
       <PanelCard title="当前点数据">
         <div className="selected-table">
           <div>MP：{selectedMp.toFixed(1)}%</div>
