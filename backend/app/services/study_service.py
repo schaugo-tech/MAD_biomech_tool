@@ -19,17 +19,19 @@ class FitModel:
     pipeline: Pipeline
     min_value: float
     max_value: float
+    r2: float
 
     def predict(self, mp, vo):
-        X = np.column_stack([np.asarray(mp).reshape(-1), np.asarray(vo).reshape(-1)])
-        y = self.pipeline.predict(X)
-        return y
+        x = np.column_stack([np.asarray(mp).reshape(-1), np.asarray(vo).reshape(-1)])
+        return self.pipeline.predict(x)
 
 
 class StudyService:
     def __init__(self):
         base_dir = Path(__file__).resolve().parents[2]
-        self.data_path = base_dir / 'data' / 'P491310E02_关节盘及牙齿应力数据V250225.xlsx'
+        primary = base_dir / 'data' / '关节盘及牙齿应力数据.xlsx'
+        fallback = base_dir / 'data' / 'P491310E02_关节盘及牙齿应力数据V250225.xlsx'
+        self.data_path = primary if primary.exists() else fallback
         self.raw_df = self._load_raw_data()
         self.models = self._fit_models()
         self.meta = self._build_meta()
@@ -37,7 +39,11 @@ class StudyService:
     def _load_raw_data(self) -> pd.DataFrame:
         if not self.data_path.exists():
             raise FileNotFoundError(f'未找到数据文件: {self.data_path}')
-        df = pd.read_excel(self.data_path, sheet_name='原始数据')
+
+        xls = pd.ExcelFile(self.data_path)
+        sheet = '原始数据' if '原始数据' in xls.sheet_names else xls.sheet_names[0]
+        df = pd.read_excel(self.data_path, sheet_name=sheet)
+
         rename_map = {
             '下颌前伸量 /%': 'mp',
             '垂直开口量 /mm': 'vo',
@@ -48,21 +54,26 @@ class StudyService:
             '（右侧）关节盘应力最大值 /MPa': 'tmj_right',
         }
         df = df.rename(columns=rename_map)
+        required_cols = ['mp', 'vo', 'tmj', 'pdl_lower', 'pdl_upper']
+        missing = [c for c in required_cols if c not in df.columns]
+        if missing:
+            raise ValueError(f'数据列缺失: {missing}')
         return df
 
     def _fit_single_model(self, target: str) -> FitModel:
-        X = self.raw_df[['mp', 'vo']].values
+        x = self.raw_df[['mp', 'vo']].values
         y = self.raw_df[target].values
         pipe = Pipeline([
             ('poly', PolynomialFeatures(degree=2, include_bias=True)),
-            ('reg', LinearRegression())
+            ('reg', LinearRegression()),
         ])
-        pipe.fit(X, y)
+        pipe.fit(x, y)
         return FitModel(
             name=target,
             pipeline=pipe,
             min_value=float(np.min(y)),
             max_value=float(np.max(y)),
+            r2=float(pipe.score(x, y)),
         )
 
     def _fit_models(self) -> Dict[str, FitModel]:
@@ -74,11 +85,13 @@ class StudyService:
 
     def _build_meta(self):
         return {
-            'study_name': 'MAD 生物力学交互式设计工具 V1',
-            'parameter_ranges': {
-                'mp': [50, 70],
-                'vo': [3, 7],
+            'study_name': 'MAD 生物力学交互式设计工具 V2',
+            'data_file': self.data_path.name,
+            'fit_stats': {
+                name: {'r2': model.r2, 'min': model.min_value, 'max': model.max_value}
+                for name, model in self.models.items()
             },
+            'parameter_ranges': {'mp': [50, 70], 'vo': [3, 7]},
             'defaults': {
                 'selected_mp': 60,
                 'selected_vo': 5,
@@ -96,14 +109,6 @@ class StudyService:
                     'balance': 0.10,
                 },
             },
-            'chart_suggestions': [
-                '整体评分热力图',
-                '限制因子地图',
-                '双应力响应面/等值图',
-                'Pareto 散点图',
-                '雷达图',
-                '单参数趋势图',
-            ],
         }
 
     def get_meta(self):
@@ -113,69 +118,24 @@ class StudyService:
         return self.raw_df.to_dict(orient='records')
 
     def _predict_frame(self, mp_values: np.ndarray, vo_values: np.ndarray) -> pd.DataFrame:
-        MP, VO = np.meshgrid(mp_values, vo_values)
-        flat_mp = MP.reshape(-1)
-        flat_vo = VO.reshape(-1)
-        tmj = self.models['tmj'].predict(flat_mp, flat_vo)
-        pdl_lower = self.models['pdl_lower'].predict(flat_mp, flat_vo)
-        pdl_upper = self.models['pdl_upper'].predict(flat_mp, flat_vo)
-        frame = pd.DataFrame({
+        mp_grid, vo_grid = np.meshgrid(mp_values, vo_values)
+        flat_mp = mp_grid.reshape(-1)
+        flat_vo = vo_grid.reshape(-1)
+        return pd.DataFrame({
             'mp': flat_mp,
             'vo': flat_vo,
-            'tmj': tmj,
-            'pdl_lower': pdl_lower,
-            'pdl_upper': pdl_upper,
+            'tmj': self.models['tmj'].predict(flat_mp, flat_vo),
+            'pdl_lower': self.models['pdl_lower'].predict(flat_mp, flat_vo),
+            'pdl_upper': self.models['pdl_upper'].predict(flat_mp, flat_vo),
         })
-        return frame
 
     @staticmethod
-    def _safe_score(value, low, high):
-        score = 1 - (value - low) / max(high - low, 1e-9)
-        return np.clip(score, 0, 1)
+    def _minmax_positive(x: pd.Series) -> pd.Series:
+        return np.clip((x - x.min()) / max(float(x.max() - x.min()), 1e-9), 0, 1)
 
     @staticmethod
-    def _soft_preference_score(value, center, spread):
-        return np.clip(1 - np.abs(value - center) / spread, 0, 1)
-
-    def _apply_scoring(self, df: pd.DataFrame, req: AnalysisRequest) -> pd.DataFrame:
-        c = req.constraints
-        w = req.weights
-        df = df.copy()
-
-        tmj_score = self._safe_score(df['tmj'], self.models['tmj'].min_value, c.tmj_max)
-        pdl_lower_score = self._safe_score(df['pdl_lower'], self.models['pdl_lower'].min_value, c.pdl_lower_max)
-        pdl_upper_score = self._safe_score(df['pdl_upper'], self.models['pdl_upper'].min_value, c.pdl_upper_max)
-        safety_score = (tmj_score + pdl_lower_score + pdl_upper_score) / 3
-
-        effectiveness_score = np.clip((df['mp'] - 50) / max(c.max_mp - 50, 1e-9), 0, 1)
-        comfort_score = self._soft_preference_score(df['vo'], center=5.0, spread=2.0)
-        balance_score = 1 - np.clip(np.abs(df['pdl_lower'] - df['pdl_upper']) / 3.0, 0, 1)
-
-        df['score_safety'] = safety_score
-        df['score_effectiveness'] = effectiveness_score
-        df['score_comfort'] = comfort_score
-        df['score_balance'] = balance_score
-
-        df['overall_score'] = (
-            w.safety * df['score_safety'] +
-            w.effectiveness * df['score_effectiveness'] +
-            w.comfort * df['score_comfort'] +
-            w.balance * df['score_balance']
-        )
-
-        df['constraint_tmj'] = df['tmj'] > c.tmj_max
-        df['constraint_pdl_lower'] = df['pdl_lower'] > c.pdl_lower_max
-        df['constraint_pdl_upper'] = df['pdl_upper'] > c.pdl_upper_max
-        df['constraint_mp'] = df['mp'] > c.max_mp
-        df['constraint_vo'] = df['vo'] > c.max_vo
-
-        violation_cols = [
-            'constraint_tmj', 'constraint_pdl_lower', 'constraint_pdl_upper', 'constraint_mp', 'constraint_vo'
-        ]
-        df['violation_count'] = df[violation_cols].sum(axis=1)
-        df['is_feasible'] = df['violation_count'] == 0
-        df['limiting_factor'] = df.apply(self._limiting_factor, axis=1)
-        return df
+    def _safe_score(value: pd.Series) -> pd.Series:
+        return 1 - StudyService._minmax_positive(value)
 
     @staticmethod
     def _limiting_factor(row):
@@ -192,25 +152,53 @@ class StudyService:
             factors.append('开口量')
         return 'OK' if not factors else ' / '.join(factors)
 
+    def _apply_scoring(self, df: pd.DataFrame, req: AnalysisRequest) -> pd.DataFrame:
+        c = req.constraints
+        w = req.weights
+        df = df.copy()
+
+        df['score_tmj_minmax'] = self._safe_score(df['tmj'])
+        df['score_pdl_lower_minmax'] = self._safe_score(df['pdl_lower'])
+        df['score_pdl_upper_minmax'] = self._safe_score(df['pdl_upper'])
+        df['score_effectiveness'] = self._minmax_positive(df['mp'])
+        df['score_comfort'] = np.clip(1 - np.abs(df['vo'] - 5.0) / 2.0, 0, 1)
+        df['score_balance'] = 1 - np.clip(np.abs(df['pdl_lower'] - df['pdl_upper']) / 3.0, 0, 1)
+
+        df['score_safety'] = (df['score_tmj_minmax'] + df['score_pdl_lower_minmax'] + df['score_pdl_upper_minmax']) / 3
+        df['overall_score'] = (
+            w.safety * df['score_safety']
+            + w.effectiveness * df['score_effectiveness']
+            + w.comfort * df['score_comfort']
+            + w.balance * df['score_balance']
+        )
+
+        df['constraint_tmj'] = df['tmj'] > c.tmj_max
+        df['constraint_pdl_lower'] = df['pdl_lower'] > c.pdl_lower_max
+        df['constraint_pdl_upper'] = df['pdl_upper'] > c.pdl_upper_max
+        df['constraint_mp'] = df['mp'] > c.max_mp
+        df['constraint_vo'] = df['vo'] > c.max_vo
+        violation_cols = ['constraint_tmj', 'constraint_pdl_lower', 'constraint_pdl_upper', 'constraint_mp', 'constraint_vo']
+        df['violation_count'] = df[violation_cols].sum(axis=1)
+        df['is_feasible'] = df['violation_count'] == 0
+        df['limiting_factor'] = df.apply(self._limiting_factor, axis=1)
+        return df
+
     def _top_candidates(self, df: pd.DataFrame, count=3):
         feasible = df[df['is_feasible']].sort_values(['overall_score', 'score_safety'], ascending=False)
         if feasible.empty:
             return []
-        dedup = feasible.drop_duplicates(subset=['mp', 'vo']).head(count)
-        return dedup.to_dict(orient='records')
+        return feasible.drop_duplicates(subset=['mp', 'vo']).head(count).to_dict(orient='records')
 
     def _selected_snapshot(self, df: pd.DataFrame, req: AnalysisRequest):
         target = df[(np.isclose(df['mp'], req.selected_mp)) & (np.isclose(df['vo'], req.selected_vo))]
         if target.empty:
-            target = df.assign(distance=(df['mp'] - req.selected_mp)**2 + (df['vo'] - req.selected_vo)**2).sort_values('distance').head(1)
-        row = target.iloc[0].to_dict()
-        return row
+            target = df.assign(distance=(df['mp'] - req.selected_mp) ** 2 + (df['vo'] - req.selected_vo) ** 2).sort_values('distance').head(1)
+        return target.iloc[0].to_dict()
 
     def analyze(self, req: AnalysisRequest):
         mp_values = np.arange(50, req.constraints.max_mp + 1e-9, req.grid_step_mp)
         vo_values = np.arange(3, req.constraints.max_vo + 1e-9, req.grid_step_vo)
-        grid = self._predict_frame(mp_values, vo_values)
-        grid = self._apply_scoring(grid, req)
+        grid = self._apply_scoring(self._predict_frame(mp_values, vo_values), req)
         selected = self._selected_snapshot(grid, req)
         candidates = self._top_candidates(grid, 3)
 
@@ -235,25 +223,12 @@ class StudyService:
             f"TMJ {selected['tmj']:.2f} MPa，下前牙 PDL {selected['pdl_lower']:.2f} kPa，"
             f"上前牙 PDL {selected['pdl_upper']:.2f} kPa。"
         )
-        if selected.get('is_feasible'):
-            advice = '当前点未触发硬约束，可以作为可讨论方案。'
-        else:
-            advice = f"当前点受限，主要限制因子为：{selected['limiting_factor']}。"
-
-        if candidates:
-            best = candidates[0]
-            best_text = (
-                f"当前推荐优先点为 MP {best['mp']:.1f}% / VO {best['vo']:.2f} mm，"
-                f"评分 {best['overall_score']:.3f}。"
-            )
-        else:
-            best_text = '当前阈值下不存在可行点，建议放宽约束或缩小目标范围。'
-
-        return {
-            'selected_text': selected_text,
-            'advice': advice,
-            'best_text': best_text,
-        }
+        advice = '当前点未触发硬约束，可以作为可讨论方案。' if selected.get('is_feasible') else f"当前点受限，主要限制因子为：{selected['limiting_factor']}。"
+        best_text = (
+            f"当前推荐优先点为 MP {candidates[0]['mp']:.1f}% / VO {candidates[0]['vo']:.2f} mm，评分 {candidates[0]['overall_score']:.3f}。"
+            if candidates else '当前阈值下不存在可行点，建议放宽约束或缩小目标范围。'
+        )
+        return {'selected_text': selected_text, 'advice': advice, 'best_text': best_text}
 
     def build_report(self, req):
         analysis = req.analysis
@@ -272,6 +247,11 @@ class StudyService:
             f"- 可行性: {'可行' if selected['is_feasible'] else '受限'}",
             f"- 限制因子: {selected['limiting_factor']}",
             '',
+            '## 拟合与评分说明',
+            '- 数据源：backend/data/关节盘及牙齿应力数据.xlsx（离散实验点）。',
+            '- 拟合：二次多项式回归（tmj、pdl_lower、pdl_upper）。',
+            '- 评分：Min-Max 映射；应力项越小分越高，前导量 MP 越大分越高。',
+            '',
             '## 推荐方案',
         ]
         if candidates:
@@ -285,18 +265,6 @@ class StudyService:
                 ])
         else:
             lines.append('- 当前没有满足阈值的可行候选点。')
-        lines.extend([
-            '## 解释',
-            analysis.get('interpretation', {}).get('selected_text', ''),
-            '',
-            analysis.get('interpretation', {}).get('advice', ''),
-            '',
-            analysis.get('interpretation', {}).get('best_text', ''),
-            '',
-            '## 说明',
-            '- 当前版本基于离散实验点与二次回归响应面。',
-            '- 图表与规则是为了快速讨论、再迭代，不是最终临床定稿。',
-        ])
         return '\n'.join(lines)
 
 
