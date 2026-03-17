@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict
 
 from pydantic import BaseModel, Field
 
@@ -14,13 +14,22 @@ class ConstraintConfig(BaseModel):
 class WeightConfig(BaseModel):
     safety: float = 0.45
     effectiveness: float = 0.30
-    comfort: float = 0.15
-    balance: float = 0.10
+    feasibility: float = 0.20
+    balance: float = 0.05
+
+
+class FormulaConfig(BaseModel):
+    mp_gain_gamma: float = Field(1.2, description='MP 治疗效果得分曲线指数，越大越偏好高 MP')
+    vo_gain_gamma: float = Field(1.1, description='VO 治疗可行性得分曲线指数，越大越偏好高 VO')
+    safety_gamma: float = Field(1.35, description='安全性得分曲线指数，越大对应力超限更敏感')
+    tradeoff_strength: float = Field(0.30, description='效果/可行性与安全性冲突时的惩罚强度')
+    risk_gamma: float = Field(1.5, description='风险惩罚曲线指数，越大表示高风险区惩罚更陡')
 
 
 class AnalysisRequest(BaseModel):
     constraints: ConstraintConfig = ConstraintConfig()
     weights: WeightConfig = WeightConfig()
+    formulas: FormulaConfig = FormulaConfig()
     selected_mp: float = 60.0
     selected_vo: float = 5.0
     grid_step_mp: float = 1.0

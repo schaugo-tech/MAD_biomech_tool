@@ -4,7 +4,7 @@ import ChartsPanel from './components/ChartsPanel'
 import ControlPanel from './components/ControlPanel'
 import InsightCard from './components/InsightCard'
 import { analyzeStudy, exportReport, fetchMeta } from './utils/api'
-import type { AnalysisResponse, ConstraintConfig, WeightConfig } from './types'
+import type { AnalysisResponse, ConstraintConfig, FormulaConfig, WeightConfig } from './types'
 
 const defaultConstraints: ConstraintConfig = {
   tmj_max: 4.5,
@@ -17,8 +17,16 @@ const defaultConstraints: ConstraintConfig = {
 const defaultWeights: WeightConfig = {
   safety: 0.45,
   effectiveness: 0.30,
-  comfort: 0.15,
-  balance: 0.10,
+  feasibility: 0.20,
+  balance: 0.05,
+}
+
+const defaultFormulas: FormulaConfig = {
+  mp_gain_gamma: 1.2,
+  vo_gain_gamma: 1.1,
+  safety_gamma: 1.35,
+  tradeoff_strength: 0.30,
+  risk_gamma: 1.5,
 }
 
 export default function App() {
@@ -27,6 +35,7 @@ export default function App() {
   const [selectedVo, setSelectedVo] = useState(5)
   const [constraints, setConstraints] = useState<ConstraintConfig>(defaultConstraints)
   const [weights, setWeights] = useState<WeightConfig>(defaultWeights)
+  const [formulas, setFormulas] = useState<FormulaConfig>(defaultFormulas)
   const [analysis, setAnalysis] = useState<AnalysisResponse | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [metaError, setMetaError] = useState<string | null>(null)
@@ -43,6 +52,7 @@ export default function App() {
           setSelectedVo(defaults.selected_vo)
           setConstraints(defaults.constraints)
           setWeights(defaults.weights)
+          setFormulas(defaults.formulas ?? defaultFormulas)
         }
       })
       .catch((err) => {
@@ -52,12 +62,12 @@ export default function App() {
   }, [])
 
   const normalizedWeights = useMemo(() => {
-    const sum = weights.safety + weights.effectiveness + weights.comfort + weights.balance
+    const sum = weights.safety + weights.effectiveness + weights.feasibility + weights.balance
     if (sum <= 0) return defaultWeights
     return {
       safety: weights.safety / sum,
       effectiveness: weights.effectiveness / sum,
-      comfort: weights.comfort / sum,
+      feasibility: weights.feasibility / sum,
       balance: weights.balance / sum,
     }
   }, [weights])
@@ -69,6 +79,7 @@ export default function App() {
       const result = await analyzeStudy({
         constraints,
         weights: normalizedWeights,
+        formulas,
         selected_mp: selectedMp,
         selected_vo: selectedVo,
         grid_step_mp: 1,
@@ -94,6 +105,7 @@ export default function App() {
     setSelectedVo(5)
     setConstraints(defaultConstraints)
     setWeights(defaultWeights)
+    setFormulas(defaultFormulas)
   }
 
   const onExport = async () => {
@@ -131,9 +143,11 @@ export default function App() {
             solvedVo={analysis?.selected?.vo ?? selectedVo}
             constraints={constraints}
             weights={weights}
+            formulas={formulas}
             loading={loading}
             onConstraintChange={(key, value) => setConstraints((prev) => ({ ...prev, [key]: value }))}
             onWeightChange={(key, value) => setWeights((prev) => ({ ...prev, [key]: value }))}
+            onFormulaChange={(key, value) => setFormulas((prev) => ({ ...prev, [key]: value }))}
             onAnalyze={runAnalysis}
             onReset={reset}
           />
