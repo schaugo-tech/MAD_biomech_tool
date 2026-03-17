@@ -18,6 +18,7 @@ button, input { font: inherit; }
 .app-header h1 { margin: 0 0 8px; font-size: 28px; }
 .app-header p { margin: 0; color: var(--muted); max-width: 860px; line-height: 1.6; }
 .header-note { padding: 10px 14px; border-radius: 14px; background: rgba(105,168,255,0.12); border: 1px solid rgba(105,168,255,0.2); color: #dcebff; }
+.header-sub { font-size: 12px; color: #b9caef; margin-top: 4px; }
 .app-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .left-col, .right-col { position: sticky; top: 10px; }
 .control-stack { display: flex; flex-direction: column; gap: 14px; }
@@ -54,3 +55,7 @@ button, input { font: inherit; }
 .result-table th, .result-table td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; white-space: nowrap; }
 .result-table th { color: #c3d2f8; font-weight: 600; }
 .result-table td { color: #dfe8ff; }
+
+
+.surface3d-wrap { height: 320px; position: relative; }
+.surface3d-title { position: absolute; right: 10px; top: 8px; z-index: 2; font-size: 12px; color: var(--muted); background: rgba(7,16,28,0.7); padding: 4px 8px; border-radius: 8px; }

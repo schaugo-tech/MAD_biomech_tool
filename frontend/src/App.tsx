@@ -103,7 +103,11 @@ export default function App() {
           <h1>MAD 生物力学展示与决策工具</h1>
           <p>预置研究数据驱动的交互式工具：支持 3D 模型查看、MP/VO 调节、结果图联动、推荐方案输出、指标解释与基础报告导出。</p>
         </div>
-        <div className="header-note">{meta?.study_name ?? '正在读取元信息...'}</div>
+        <div className="header-note">
+          <div>{meta?.study_name ?? '正在读取元信息...'}</div>
+          {meta?.data_file ? <div className="header-sub">数据源：{meta.data_file}</div> : null}
+          {meta?.fit_stats ? <div className="header-sub">拟合R²：TMJ {meta.fit_stats.tmj.r2.toFixed(3)} / PDL-L {meta.fit_stats.pdl_lower.r2.toFixed(3)} / PDL-U {meta.fit_stats.pdl_upper.r2.toFixed(3)}</div> : null}
+        </div>
       </header>
 
       <main className="app-grid">

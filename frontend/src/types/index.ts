@@ -32,6 +32,9 @@ export type GridRecord = {
   score_effectiveness: number
   score_comfort: number
   score_balance: number
+  score_tmj_minmax: number
+  score_pdl_lower_minmax: number
+  score_pdl_upper_minmax: number
   overall_score: number
   constraint_tmj: boolean
   constraint_pdl_lower: boolean
