@@ -23,8 +23,8 @@ function buildMaterial(item: ManifestItem) {
     opacity: item.opacity,
   }
   if (item.style === 'Wireframe') return new THREE.MeshBasicMaterial({ ...common, wireframe: true })
-  if (item.style === 'Physical') return new THREE.MeshPhysicalMaterial({ ...common, roughness: 0.65, metalness: 0.1, clearcoat: 0.2 })
-  return new THREE.MeshStandardMaterial({ ...common, roughness: 0.7, metalness: 0.12 })
+  if (item.style === 'Physical') return new THREE.MeshPhysicalMaterial({ ...common, roughness: 0.42, metalness: 0.02, clearcoat: 0.08, emissive: new THREE.Color(item.color).multiplyScalar(0.14) })
+  return new THREE.MeshStandardMaterial({ ...common, roughness: 0.42, metalness: 0.02, emissive: new THREE.Color(item.color).multiplyScalar(0.16) })
 }
 
 function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: ManifestItem, offset?: [number, number, number], withLocalAxes?: boolean }) {
@@ -35,8 +35,8 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
     cloned.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
         ;(obj as THREE.Mesh).material = mat
-        obj.castShadow = true
-        obj.receiveShadow = true
+        obj.castShadow = false
+        obj.receiveShadow = false
       }
     })
     if (withLocalAxes) cloned.add(new THREE.AxesHelper(0.85))
@@ -49,8 +49,8 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
 function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: ManifestItem[] }) {
   const mpShift = (selectedMp - 50) * 0.038
   const voDrop = (selectedVo - 3) * 0.085
-  // 按临床要求：MP 沿 y 轴向右，VO 沿 z 轴向下
-  const jawOffset = useMemo(() => [0, mpShift, -voDrop] as [number, number, number], [mpShift, voDrop])
+  // 按反馈修正方向符号：MP 与 VO 的运动方向均做正负号翻转
+  const jawOffset = useMemo(() => [0, -mpShift, voDrop] as [number, number, number], [mpShift, voDrop])
 
   return (
     <group>
@@ -76,13 +76,13 @@ export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
 
   return (
     <div className="scene-wrap scene-wrap--bright">
-      <Canvas orthographic camera={{ position: [8, 6, 8], zoom: 85 }} shadows gl={{ antialias: true }} dpr={[1, 2]}>
+      <Canvas orthographic camera={{ position: [8, 6, 8], zoom: 85 }} gl={{ antialias: true }} dpr={[1, 2]}>
         <color attach="background" args={["#f3f8ff"]} />
-        <hemisphereLight intensity={0.95} color="#ffffff" groundColor="#9db8dd" />
-        <ambientLight intensity={1.15} />
-        <directionalLight position={[8, 12, 8]} intensity={1.35} castShadow />
-        <directionalLight position={[-7, 7, -8]} intensity={0.85} />
-        <pointLight position={[0, 6, 3]} intensity={0.55} />
+        <hemisphereLight intensity={1.35} color="#ffffff" groundColor="#c6d8ee" />
+        <ambientLight intensity={1.55} />
+        <directionalLight position={[8, 12, 8]} intensity={1.05} />
+        <directionalLight position={[-7, 7, -8]} intensity={0.75} />
+        <pointLight position={[0, 6, 3]} intensity={0.4} />
 
         <Suspense fallback={null}>
           {manifest.length > 0 ? (
