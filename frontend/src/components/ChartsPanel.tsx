@@ -31,11 +31,12 @@ function denseMatrix(grid: GridRecord[], field: keyof GridRecord) {
 export default function ChartsPanel({ analysis, selectedMp, selectedVo, onPickPoint }: Props) {
   if (!analysis) return <PanelCard title="图表区"><div className="compact-note">请先点击“更新结果”。</div></PanelCard>
 
-  const { grid, selected, raw_records } = analysis
+  const { grid, raw_records } = analysis
+  const selected = grid.find((g) => Math.abs(g.mp - selectedMp) < 1e-6 && Math.abs(g.vo - selectedVo) < 1e-6) ?? analysis.selected
   const scoreMap = denseMatrix(grid, 'overall_score')
   const tmjMap = denseMatrix(grid, 'tmj')
   const pdlMap = denseMatrix(grid, 'pdl_lower')
-  const topRows = [...grid].sort((a, b) => b.overall_score - a.overall_score).slice(0, 10)
+  const topRows = [...grid].filter((r) => Math.round(r.mp) % 5 === 0).sort((a, b) => b.overall_score - a.overall_score).slice(0, 10)
 
   const limitingFactorMap = { OK: 0, 关节盘应力: 1, 下前牙PDL: 2, 上前牙PDL: 3, 前伸比例: 4, 开口量: 5 } as Record<string, number>
   const limitLookup = new Map(grid.map((g) => [`${g.mp}_${g.vo}`, limitingFactorMap[g.limiting_factor.split(' / ')[0]] ?? 6]))
@@ -55,7 +56,7 @@ export default function ChartsPanel({ analysis, selectedMp, selectedVo, onPickPo
   }
 
   const baseHeatmap = (title: string, data: number[][], maxValue: number, minValue = 0, visualText?: [string, string]) => ({
-    title: { text: title, left: 10, top: 6, textStyle: { color: '#dfe6ff', fontSize: 14 } },
+    title: { text: title, left: 10, top: 2, textStyle: { color: '#dfe6ff', fontSize: 14 } },
     tooltip: {
       trigger: 'item',
       formatter: (p: any) => {
@@ -65,9 +66,9 @@ export default function ChartsPanel({ analysis, selectedMp, selectedVo, onPickPo
         return `MP ${mp}%<br/>VO ${vo} mm<br/>值 ${Number(v).toFixed(3)}`
       },
     },
-    grid: { left: 54, right: 24, top: 44, bottom: 46 },
-    xAxis: { type: 'category', data: scoreMap.mps, name: 'MP %', axisLabel: { color: '#cfd7f4' }, nameTextStyle: { color: '#cfd7f4' } },
-    yAxis: { type: 'category', data: scoreMap.vos, name: 'VO mm', axisLabel: { color: '#cfd7f4' }, nameTextStyle: { color: '#cfd7f4' } },
+    grid: { left: 62, right: 24, top: 66, bottom: 46 },
+    xAxis: { type: 'category', data: scoreMap.mps, name: 'MP %', nameGap: 26, axisLabel: { color: '#cfd7f4' }, nameTextStyle: { color: '#cfd7f4' } },
+    yAxis: { type: 'category', data: scoreMap.vos, name: 'VO mm', nameGap: 34, axisLabel: { color: '#cfd7f4' }, nameTextStyle: { color: '#cfd7f4' } },
     visualMap: { min: minValue, max: maxValue, orient: 'horizontal', left: 'center', bottom: 2, text: visualText, calculable: true, textStyle: { color: '#cfd7f4' } },
     series: [{ type: 'heatmap', data, label: { show: true, formatter: (p: any) => Number(p.value[2]).toFixed(2), color: '#08111f', fontSize: 9 } }],
     backgroundColor: 'transparent',

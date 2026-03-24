@@ -72,6 +72,12 @@ export default function App() {
     }
   }, [weights])
 
+
+  const selectedRecord = useMemo(() => {
+    if (!analysis?.grid?.length) return analysis?.selected
+    return analysis.grid.find((g) => Math.abs(g.mp - selectedMp) < 1e-6 && Math.abs(g.vo - selectedVo) < 1e-6) ?? analysis.selected
+  }, [analysis, selectedMp, selectedVo])
+
   const runAnalysis = async () => {
     setLoading(true)
     setAnalysisError(null)
@@ -163,7 +169,7 @@ export default function App() {
         </section>
 
         <aside className="right-col">
-          <InsightCard selected={analysis?.selected} candidates={analysis?.candidates ?? []} interpretation={analysis?.interpretation} onExport={onExport} />
+          <InsightCard selected={selectedRecord} candidates={analysis?.candidates ?? []} interpretation={analysis?.interpretation} onExport={onExport} />
         </aside>
       </main>
     </div>

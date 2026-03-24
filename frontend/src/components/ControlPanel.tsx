@@ -80,7 +80,7 @@ export default function ControlPanel(props: Props) {
 
       <PanelCard title="公式参数（非单调取舍）">
         <div className="compact-note">
-          MP/VO 增益指数越大，越偏好更高 MP/VO；安全性敏感指数越大，对高应力扣分越重；冲突惩罚强度与风险惩罚指数共同控制“高推进+高风险”区域的额外扣分。
+          MP 增益指数调高＝治疗推进更激进；VO 增益指数调高＝治疗可行性更激进；安全性敏感指数调高＝系统对高应力更保守；冲突惩罚强度和风险惩罚指数越高，越会压低“高推进但高风险”的方案。
         </div>
         <label className="field">
           <span>MP 增益曲线指数：{formulas.mp_gain_gamma.toFixed(2)}</span>
