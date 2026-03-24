@@ -140,8 +140,8 @@ export default function App() {
       <main className="app-grid">
         <aside className="left-col">
           <ControlPanel
-            solvedMp={analysis?.selected?.mp ?? selectedMp}
-            solvedVo={analysis?.selected?.vo ?? selectedVo}
+            solvedMp={analysis?.recommended?.mp ?? analysis?.selected?.mp ?? selectedMp}
+            solvedVo={analysis?.recommended?.vo ?? analysis?.selected?.vo ?? selectedVo}
             constraints={constraints}
             weights={weights}
             formulas={formulas}

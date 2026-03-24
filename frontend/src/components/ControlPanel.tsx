@@ -79,6 +79,9 @@ export default function ControlPanel(props: Props) {
       </PanelCard>
 
       <PanelCard title="公式参数（非单调取舍）">
+        <div className="compact-note">
+          MP/VO 增益指数越大，越偏好更高 MP/VO；安全性敏感指数越大，对高应力扣分越重；冲突惩罚强度与风险惩罚指数共同控制“高推进+高风险”区域的额外扣分。
+        </div>
         <label className="field">
           <span>MP 增益曲线指数：{formulas.mp_gain_gamma.toFixed(2)}</span>
           <input type="range" min={0.6} max={2.2} step={0.05} value={formulas.mp_gain_gamma} onChange={(e) => onFormulaChange('mp_gain_gamma', Number(e.target.value))} />

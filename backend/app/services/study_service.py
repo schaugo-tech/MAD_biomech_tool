@@ -209,6 +209,12 @@ class StudyService:
             target = df.assign(distance=(df['mp'] - req.selected_mp) ** 2 + (df['vo'] - req.selected_vo) ** 2).sort_values('distance').head(1)
         return target.iloc[0].to_dict()
 
+    def _best_recommendation(self, df: pd.DataFrame) -> Dict:
+        feasible = df[df['is_feasible']].sort_values(['overall_score', 'score_safety'], ascending=False)
+        if not feasible.empty:
+            return feasible.iloc[0].to_dict()
+        return df.sort_values(['overall_score', 'score_safety'], ascending=False).iloc[0].to_dict()
+
     def analyze(self, req: AnalysisRequest):
         mp_values = np.arange(50, req.constraints.max_mp + 1e-9, req.grid_step_mp)
         vo_values = np.arange(3, req.constraints.max_vo + 1e-9, req.grid_step_vo)
@@ -222,6 +228,7 @@ class StudyService:
         return {
             'meta': self.meta,
             'selected': selected,
+            'recommended': self._best_recommendation(grid),
             'candidates': candidates,
             'grid': grid.round(4).to_dict(orient='records'),
             'raw_records': self.get_raw_records(),

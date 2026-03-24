@@ -61,6 +61,7 @@ export type GridRecord = {
 export type AnalysisResponse = {
   meta: any
   selected: GridRecord
+  recommended?: GridRecord
   candidates: GridRecord[]
   grid: GridRecord[]
   raw_records: any[]
