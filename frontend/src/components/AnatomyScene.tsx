@@ -47,9 +47,10 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
 }
 
 function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: ManifestItem[] }) {
-  const mandibleX = (selectedMp - 50) * 0.035
-  const biteOpen = (selectedVo - 3) * 0.08
-  const jawOffset = useMemo(() => [mandibleX, -biteOpen, 0] as [number, number, number], [mandibleX, biteOpen])
+  const mpShift = (selectedMp - 50) * 0.038
+  const voDrop = (selectedVo - 3) * 0.085
+  // 按临床要求：MP 沿 y 轴向右，VO 沿 z 轴向下
+  const jawOffset = useMemo(() => [0, mpShift, -voDrop] as [number, number, number], [mpShift, voDrop])
 
   return (
     <group>
@@ -60,7 +61,7 @@ function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: 
       })}
       <axesHelper args={[1.4]} />
       <Html position={[0, 2.6, 0]} center>
-        <div className="scene-badge">MP {selectedMp.toFixed(1)}% · VO {selectedVo.toFixed(2)} mm</div>
+        <div className="scene-badge">推荐位姿：MP {selectedMp.toFixed(1)}% · VO {selectedVo.toFixed(2)} mm</div>
       </Html>
     </group>
   )
@@ -75,10 +76,13 @@ export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
 
   return (
     <div className="scene-wrap scene-wrap--bright">
-      <Canvas orthographic camera={{ position: [8, 6, 8], zoom: 85 }} shadows>
-        <ambientLight intensity={1.1} />
-        <directionalLight position={[6, 10, 7]} intensity={1.15} castShadow />
-        <directionalLight position={[-6, 5, -7]} intensity={0.55} />
+      <Canvas orthographic camera={{ position: [8, 6, 8], zoom: 85 }} shadows gl={{ antialias: true }} dpr={[1, 2]}>
+        <color attach="background" args={["#f3f8ff"]} />
+        <hemisphereLight intensity={0.95} color="#ffffff" groundColor="#9db8dd" />
+        <ambientLight intensity={1.15} />
+        <directionalLight position={[8, 12, 8]} intensity={1.35} castShadow />
+        <directionalLight position={[-7, 7, -8]} intensity={0.85} />
+        <pointLight position={[0, 6, 3]} intensity={0.55} />
 
         <Suspense fallback={null}>
           {manifest.length > 0 ? (

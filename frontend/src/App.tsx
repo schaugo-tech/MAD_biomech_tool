@@ -115,6 +115,9 @@ export default function App() {
     setFormulas(defaultFormulas)
   }
 
+  const recommendedMp = analysis?.recommended?.mp ?? selectedMp
+  const recommendedVo = analysis?.recommended?.vo ?? selectedVo
+
   const onExport = async () => {
     if (!analysis) return
     const text = await exportReport(analysis)
@@ -162,7 +165,7 @@ export default function App() {
 
         <section className="center-col">
           <div className="scene-panel">
-            <AnatomyScene selectedMp={selectedMp} selectedVo={selectedVo} />
+            <AnatomyScene selectedMp={recommendedMp} selectedVo={recommendedVo} />
           </div>
           {analysisError ? <div className="panel-inline-error">{analysisError}</div> : null}
           <ChartsPanel analysis={analysis} selectedMp={selectedMp} selectedVo={selectedVo} onPickPoint={(mp, vo) => { setSelectedMp(mp); setSelectedVo(vo) }} />
