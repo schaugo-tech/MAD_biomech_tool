@@ -86,10 +86,11 @@ export default function App() {
         grid_step_vo: 0.25,
       })
       setAnalysis(result)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
       setAnalysis(undefined)
-      setAnalysisError('分析结果拉取失败，请确认后端 /api/study/analyze 正常。')
+      const detail = err?.response?.data?.detail ?? err?.message
+      setAnalysisError(detail ? `分析结果拉取失败：${detail}` : '分析结果拉取失败，请确认后端 /api/study/analyze 正常。')
     } finally {
       setLoading(false)
     }
