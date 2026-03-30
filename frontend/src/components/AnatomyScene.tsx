@@ -1,6 +1,7 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { ArcballControls, Bounds, GizmoHelper, GizmoViewcube, Grid, Html, useGLTF } from '@react-three/drei'
 import { Suspense, useEffect, useMemo, useState } from 'react'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import * as THREE from 'three'
 
 type Props = {
@@ -21,6 +22,7 @@ function buildMaterial(item: ManifestItem) {
     color: new THREE.Color(item.color),
     transparent: item.opacity < 1,
     opacity: item.opacity,
+    side: THREE.DoubleSide,
   }
   if (item.style === 'Wireframe') return new THREE.MeshBasicMaterial({ ...common, wireframe: true })
   if (item.style === 'Physical') return new THREE.MeshPhysicalMaterial({ ...common, roughness: 0.42, metalness: 0.02, clearcoat: 0.08, emissive: new THREE.Color(item.color).multiplyScalar(0.14) })
@@ -34,9 +36,14 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
     const mat = buildMaterial(item)
     cloned.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
-        ;(obj as THREE.Mesh).material = mat
-        obj.castShadow = false
-        obj.receiveShadow = false
+        const mesh = obj as THREE.Mesh
+        const geom = mesh.geometry as THREE.BufferGeometry
+        if (geom && !geom.attributes.normal) {
+          geom.computeVertexNormals()
+        }
+        mesh.material = mat
+        mesh.castShadow = false
+        mesh.receiveShadow = false
       }
     })
     if (withLocalAxes) cloned.add(new THREE.AxesHelper(0.85))
@@ -67,6 +74,27 @@ function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: 
   )
 }
 
+
+function SceneEnvironment() {
+  const { gl, scene } = useThree()
+
+  useEffect(() => {
+    const pmremGenerator = new THREE.PMREMGenerator(gl)
+    const envScene = new RoomEnvironment()
+    const envRT = pmremGenerator.fromScene(envScene)
+    scene.environment = envRT.texture
+
+    return () => {
+      scene.environment = null
+      envRT.dispose()
+      pmremGenerator.dispose()
+      envScene.dispose()
+    }
+  }, [gl, scene])
+
+  return null
+}
+
 export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
   const [manifest, setManifest] = useState<ManifestItem[]>([])
 
@@ -76,9 +104,21 @@ export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
 
   return (
     <div className="scene-wrap scene-wrap--bright">
-      <Canvas orthographic camera={{ position: [8, 6, 8], zoom: 85 }} gl={{ antialias: true }} dpr={[1, 2]}>
+      <Canvas
+        orthographic
+        camera={{ position: [8, 6, 8], zoom: 85 }}
+        gl={{ antialias: true }}
+        dpr={[1, 2]}
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = THREE.SRGBColorSpace
+          gl.toneMapping = THREE.ACESFilmicToneMapping
+          gl.toneMappingExposure = 1.2
+          gl.physicallyCorrectLights = true
+        }}
+      >
         <color attach="background" args={["#f3f8ff"]} />
-        <hemisphereLight intensity={1.35} color="#ffffff" groundColor="#c6d8ee" />
+        <SceneEnvironment />
+        <hemisphereLight intensity={1.0} color="#ffffff" groundColor="#c6d8ee" />
         <ambientLight intensity={1.55} />
         <directionalLight position={[8, 12, 8]} intensity={1.05} />
         <directionalLight position={[-7, 7, -8]} intensity={0.75} />
