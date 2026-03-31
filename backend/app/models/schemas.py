@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -38,3 +38,51 @@ class AnalysisRequest(BaseModel):
 
 class ReportRequest(BaseModel):
     analysis: Dict
+
+
+# ===== V1 推荐引擎输入 =====
+
+class TreatmentNeedInput(BaseModel):
+    ahi: Optional[float] = None
+    symptom_severity: Optional[str] = None
+    complaint_strength: Optional[str] = None
+
+
+class TMJSensitivityInput(BaseModel):
+    pain_vas: Optional[float] = None
+    joint_state: Optional[str] = None
+    mouth_opening_mm: Optional[float] = None
+    mouth_opening_state: Optional[str] = None
+
+
+class PeriodontalInput(BaseModel):
+    mobility_state: Optional[str] = None
+    bone_loss_state: Optional[str] = None
+
+
+class OcclusalNeedInput(BaseModel):
+    deep_overbite: bool = False
+    occlusal_interference: bool = False
+    anterior_crossbite: bool = False
+
+
+class FrontendInputs(BaseModel):
+    treatment_need: TreatmentNeedInput
+    tmj_sensitivity: TMJSensitivityInput
+    periodontal: PeriodontalInput
+    occlusal_need: OcclusalNeedInput
+
+
+class RecommendV1Request(BaseModel):
+    inputs: FrontendInputs
+    mp_grid: Optional[List[float]] = None
+    vo_grid: Optional[List[float]] = None
+
+
+class RecommendV1Response(BaseModel):
+    status: str
+    scalars: Dict[str, float]
+    best: Dict[str, Any]
+    alternatives: List[Dict[str, Any]]
+    charts: Dict[str, Any]
+    meta: Dict[str, Any]
