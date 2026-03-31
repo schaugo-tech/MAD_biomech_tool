@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import AnatomyScene from './components/AnatomyScene'
 import ChartsPanel from './components/ChartsPanel'
 import ControlPanel from './components/ControlPanel'
 import InsightCard from './components/InsightCard'
@@ -18,6 +19,8 @@ export default function App() {
   const [result, setResult] = useState<RecommendV1Response | undefined>()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sceneMp, setSceneMp] = useState(60)
+  const [sceneVo, setSceneVo] = useState(5)
 
   const mpGrid = useMemo(() => Array.from({ length: 21 }, (_, i) => 50 + i), [])
   const voGrid = useMemo(() => Array.from({ length: 17 }, (_, i) => Number((3 + i * 0.25).toFixed(2))), [])
@@ -28,6 +31,8 @@ export default function App() {
     try {
       const data = await previewRecommend({ inputs, mp_grid: mpGrid, vo_grid: voGrid })
       setResult(data)
+      setSceneMp(data.best.mp)
+      setSceneVo(data.best.vo)
     } catch (err: any) {
       const detail = err?.response?.data?.detail ?? err?.message
       setError(detail ? `推荐计算失败：${detail}` : '推荐计算失败')
@@ -63,6 +68,21 @@ export default function App() {
           <ControlPanel inputs={inputs} loading={loading} onInputsChange={setInputs} onAnalyze={run} onReset={() => setInputs(defaultInputs)} />
         </aside>
         <section className="center-col">
+          <div className="scene-panel">
+            <AnatomyScene selectedMp={sceneMp} selectedVo={sceneVo} />
+            <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="compact-note">3D 位姿交互：可手动拖动 MP/VO 预览，或点击“同步推荐位姿”。</div>
+              <label className="field">
+                <span>MP：{sceneMp.toFixed(1)}%</span>
+                <input type="range" min={50} max={70} step={0.5} value={sceneMp} onChange={(e) => setSceneMp(Number(e.target.value))} />
+              </label>
+              <label className="field">
+                <span>VO：{sceneVo.toFixed(2)} mm</span>
+                <input type="range" min={3} max={7} step={0.25} value={sceneVo} onChange={(e) => setSceneVo(Number(e.target.value))} />
+              </label>
+              <button className="btn" onClick={() => { if (result) { setSceneMp(result.best.mp); setSceneVo(result.best.vo) } }}>同步推荐位姿</button>
+            </div>
+          </div>
           <ChartsPanel data={result} />
         </section>
         <aside className="right-col">
