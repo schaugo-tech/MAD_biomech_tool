@@ -1,111 +1,76 @@
-import type { ConstraintConfig, FormulaConfig, WeightConfig } from '../types'
+import type { FrontendInputs } from '../types'
 import PanelCard from './PanelCard'
 
 type Props = {
-  solvedMp: number
-  solvedVo: number
-  constraints: ConstraintConfig
-  weights: WeightConfig
-  formulas: FormulaConfig
+  inputs: FrontendInputs
   loading: boolean
-  onConstraintChange: (key: keyof ConstraintConfig, value: number) => void
-  onWeightChange: (key: keyof WeightConfig, value: number) => void
-  onFormulaChange: (key: keyof FormulaConfig, value: number) => void
+  onInputsChange: (next: FrontendInputs) => void
   onAnalyze: () => void
   onReset: () => void
 }
 
-export default function ControlPanel(props: Props) {
-  const {
-    solvedMp,
-    solvedVo,
-    constraints,
-    weights,
-    formulas,
-    loading,
-    onConstraintChange,
-    onWeightChange,
-    onFormulaChange,
-    onAnalyze,
-    onReset,
-  } = props
-
+export default function ControlPanel({ inputs, loading, onInputsChange, onAnalyze, onReset }: Props) {
   return (
     <div className="control-stack">
-      <PanelCard title="研究场景">
-        <div className="compact-note">当前版本固定为 MAD 生物力学设计场景。后续可把这里扩展成多课题入口。</div>
-      </PanelCard>
-
-      <PanelCard title="求解输出参数（由数据与规则自动计算）">
-        <div className="metric-grid">
-          <div className="metric-box"><span>推荐 MP 前伸比例</span><strong>{solvedMp.toFixed(1)}%</strong></div>
-          <div className="metric-box"><span>推荐 VO 开口量</span><strong>{solvedVo.toFixed(2)} mm</strong></div>
-        </div>
-        <div className="compact-note">逻辑上：权重（主诉）+ 边界约束（诊断）+ 公式（取舍偏好）作为前提，MP/VO 为求解结果。</div>
-      </PanelCard>
-
-      <PanelCard title="边界约束参数（诊断前提）">
+      <PanelCard title="治疗需求强度（d）">
         <label className="field">
-          <span>TMJ 最大允许应力：{constraints.tmj_max.toFixed(2)} MPa</span>
-          <input type="range" min={2.5} max={6.5} step={0.1} value={constraints.tmj_max} onChange={(e) => onConstraintChange('tmj_max', Number(e.target.value))} />
+          <span>AHI：{inputs.treatment_need.ahi ?? 28}</span>
+          <input type="range" min={5} max={60} step={1} value={inputs.treatment_need.ahi ?? 28} onChange={(e) => onInputsChange({ ...inputs, treatment_need: { ...inputs.treatment_need, ahi: Number(e.target.value) } })} />
         </label>
         <label className="field">
-          <span>下前牙 PDL 上限：{constraints.pdl_lower_max.toFixed(2)} kPa</span>
-          <input type="range" min={4} max={8.5} step={0.1} value={constraints.pdl_lower_max} onChange={(e) => onConstraintChange('pdl_lower_max', Number(e.target.value))} />
+          <span>症状严重度</span>
+          <select value={inputs.treatment_need.symptom_severity ?? 'moderate'} onChange={(e) => onInputsChange({ ...inputs, treatment_need: { ...inputs.treatment_need, symptom_severity: e.target.value as any } })}>
+            <option value="mild">mild</option><option value="moderate">moderate</option><option value="severe">severe</option>
+          </select>
         </label>
         <label className="field">
-          <span>上前牙 PDL 上限：{constraints.pdl_upper_max.toFixed(2)} kPa</span>
-          <input type="range" min={4} max={8.5} step={0.1} value={constraints.pdl_upper_max} onChange={(e) => onConstraintChange('pdl_upper_max', Number(e.target.value))} />
+          <span>主诉强度</span>
+          <select value={inputs.treatment_need.complaint_strength ?? 'medium'} onChange={(e) => onInputsChange({ ...inputs, treatment_need: { ...inputs.treatment_need, complaint_strength: e.target.value as any } })}>
+            <option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+          </select>
         </label>
       </PanelCard>
 
-      <PanelCard title="综合评分权重（主诉前提）">
+      <PanelCard title="关节敏感度（j）">
         <label className="field">
-          <span>安全性：{weights.safety.toFixed(2)}</span>
-          <input type="range" min={0} max={1} step={0.05} value={weights.safety} onChange={(e) => onWeightChange('safety', Number(e.target.value))} />
+          <span>疼痛 VAS：{inputs.tmj_sensitivity.pain_vas ?? 3}</span>
+          <input type="range" min={0} max={10} step={1} value={inputs.tmj_sensitivity.pain_vas ?? 3} onChange={(e) => onInputsChange({ ...inputs, tmj_sensitivity: { ...inputs.tmj_sensitivity, pain_vas: Number(e.target.value) } })} />
         </label>
         <label className="field">
-          <span>治疗效果（MP）：{weights.effectiveness.toFixed(2)}</span>
-          <input type="range" min={0} max={1} step={0.05} value={weights.effectiveness} onChange={(e) => onWeightChange('effectiveness', Number(e.target.value))} />
+          <span>关节状态</span>
+          <select value={inputs.tmj_sensitivity.joint_state ?? 'click'} onChange={(e) => onInputsChange({ ...inputs, tmj_sensitivity: { ...inputs.tmj_sensitivity, joint_state: e.target.value as any } })}>
+            <option value="none">none</option><option value="click">click</option><option value="lock">lock</option>
+          </select>
         </label>
         <label className="field">
-          <span>治疗可行性（VO）：{weights.feasibility.toFixed(2)}</span>
-          <input type="range" min={0} max={1} step={0.05} value={weights.feasibility} onChange={(e) => onWeightChange('feasibility', Number(e.target.value))} />
-        </label>
-        <label className="field">
-          <span>上下牙平衡：{weights.balance.toFixed(2)}</span>
-          <input type="range" min={0} max={1} step={0.05} value={weights.balance} onChange={(e) => onWeightChange('balance', Number(e.target.value))} />
+          <span>开口状态</span>
+          <select value={inputs.tmj_sensitivity.mouth_opening_state ?? 'normal'} onChange={(e) => onInputsChange({ ...inputs, tmj_sensitivity: { ...inputs.tmj_sensitivity, mouth_opening_state: e.target.value as any } })}>
+            <option value="normal">normal</option><option value="mildly_limited">mildly_limited</option><option value="limited">limited</option>
+          </select>
         </label>
       </PanelCard>
 
-      <PanelCard title="公式参数（非单调取舍）">
-        <div className="compact-note">
-          MP 增益指数调高＝治疗推进更激进；VO 增益指数调高＝治疗可行性更激进；安全性敏感指数调高＝系统对高应力更保守；冲突惩罚强度和风险惩罚指数越高，越会压低“高推进但高风险”的方案。
-        </div>
-        <label className="field">
-          <span>MP 增益曲线指数：{formulas.mp_gain_gamma.toFixed(2)}</span>
-          <input type="range" min={0.6} max={2.2} step={0.05} value={formulas.mp_gain_gamma} onChange={(e) => onFormulaChange('mp_gain_gamma', Number(e.target.value))} />
+      <PanelCard title="前牙牙周敏感度（p）">
+        <label className="field"><span>前牙松动度</span>
+          <select value={inputs.periodontal.mobility_state ?? 'stable'} onChange={(e) => onInputsChange({ ...inputs, periodontal: { ...inputs.periodontal, mobility_state: e.target.value as any } })}>
+            <option value="stable">stable</option><option value="mild">mild</option><option value="obvious">obvious</option>
+          </select>
         </label>
-        <label className="field">
-          <span>VO 增益曲线指数：{formulas.vo_gain_gamma.toFixed(2)}</span>
-          <input type="range" min={0.6} max={2.2} step={0.05} value={formulas.vo_gain_gamma} onChange={(e) => onFormulaChange('vo_gain_gamma', Number(e.target.value))} />
+        <label className="field"><span>骨丧失状态</span>
+          <select value={inputs.periodontal.bone_loss_state ?? 'low'} onChange={(e) => onInputsChange({ ...inputs, periodontal: { ...inputs.periodontal, bone_loss_state: e.target.value as any } })}>
+            <option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+          </select>
         </label>
-        <label className="field">
-          <span>安全性敏感指数：{formulas.safety_gamma.toFixed(2)}</span>
-          <input type="range" min={0.6} max={2.5} step={0.05} value={formulas.safety_gamma} onChange={(e) => onFormulaChange('safety_gamma', Number(e.target.value))} />
-        </label>
-        <label className="field">
-          <span>冲突惩罚强度：{formulas.tradeoff_strength.toFixed(2)}</span>
-          <input type="range" min={0} max={1} step={0.05} value={formulas.tradeoff_strength} onChange={(e) => onFormulaChange('tradeoff_strength', Number(e.target.value))} />
-        </label>
-        <label className="field">
-          <span>风险惩罚指数：{formulas.risk_gamma.toFixed(2)}</span>
-          <input type="range" min={0.8} max={3.0} step={0.05} value={formulas.risk_gamma} onChange={(e) => onFormulaChange('risk_gamma', Number(e.target.value))} />
-        </label>
+      </PanelCard>
+
+      <PanelCard title="咬合抬高需求（o）">
+        <label className="field"><span><input type="checkbox" checked={inputs.occlusal_need.deep_overbite} onChange={(e) => onInputsChange({ ...inputs, occlusal_need: { ...inputs.occlusal_need, deep_overbite: e.target.checked } })} /> 深覆牙合</span></label>
+        <label className="field"><span><input type="checkbox" checked={inputs.occlusal_need.occlusal_interference} onChange={(e) => onInputsChange({ ...inputs, occlusal_need: { ...inputs.occlusal_need, occlusal_interference: e.target.checked } })} /> 咬合干扰</span></label>
+        <label className="field"><span><input type="checkbox" checked={inputs.occlusal_need.anterior_crossbite} onChange={(e) => onInputsChange({ ...inputs, occlusal_need: { ...inputs.occlusal_need, anterior_crossbite: e.target.checked } })} /> 前牙反牙合</span></label>
       </PanelCard>
 
       <div className="button-row">
-        <button className="btn btn-primary" onClick={onAnalyze} disabled={loading}>{loading ? '更新中…' : '更新结果'}</button>
+        <button className="btn btn-primary" onClick={onAnalyze} disabled={loading}>{loading ? '计算中…' : '更新推荐'}</button>
         <button className="btn" onClick={onReset}>重置</button>
       </div>
     </div>

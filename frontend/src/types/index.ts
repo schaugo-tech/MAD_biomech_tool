@@ -1,74 +1,74 @@
-export type ConstraintConfig = {
-  tmj_max: number
-  pdl_lower_max: number
-  pdl_upper_max: number
-  max_mp: number
-  max_vo: number
+export type TreatmentNeedInput = {
+  ahi?: number
+  symptom_severity?: 'mild' | 'moderate' | 'severe'
+  complaint_strength?: 'low' | 'medium' | 'high'
 }
 
-export type WeightConfig = {
-  safety: number
-  effectiveness: number
-  feasibility: number
-  balance: number
+export type TMJSensitivityInput = {
+  pain_vas?: number
+  joint_state?: 'none' | 'click' | 'lock'
+  mouth_opening_mm?: number
+  mouth_opening_state?: 'normal' | 'mildly_limited' | 'limited'
 }
 
-export type FormulaConfig = {
-  mp_gain_gamma: number
-  vo_gain_gamma: number
-  safety_gamma: number
-  tradeoff_strength: number
-  risk_gamma: number
+export type PeriodontalInput = {
+  mobility_state?: 'stable' | 'mild' | 'obvious'
+  bone_loss_state?: 'low' | 'medium' | 'high'
 }
 
-export type AnalysisRequest = {
-  constraints: ConstraintConfig
-  weights: WeightConfig
-  formulas: FormulaConfig
-  selected_mp: number
-  selected_vo: number
-  grid_step_mp: number
-  grid_step_vo: number
+export type OcclusalNeedInput = {
+  deep_overbite: boolean
+  occlusal_interference: boolean
+  anterior_crossbite: boolean
 }
 
-export type GridRecord = {
+export type FrontendInputs = {
+  treatment_need: TreatmentNeedInput
+  tmj_sensitivity: TMJSensitivityInput
+  periodontal: PeriodontalInput
+  occlusal_need: OcclusalNeedInput
+}
+
+export type RecommendV1Request = {
+  inputs: FrontendInputs
+  mp_grid?: number[]
+  vo_grid?: number[]
+}
+
+export type RecommendPoint = {
   mp: number
   vo: number
-  tmj: number
-  pdl_lower: number
-  pdl_upper: number
-  score_safety: number
-  score_effectiveness: number
-  score_feasibility: number
-  score_balance: number
-  score_tmj_minmax: number
-  score_pdl_lower_minmax: number
-  score_pdl_upper_minmax: number
-  risk_index: number
-  drive_index: number
-  score_tradeoff_penalty: number
-  overall_score: number
-  constraint_tmj: boolean
-  constraint_pdl_lower: boolean
-  constraint_pdl_upper: boolean
-  constraint_mp: boolean
-  constraint_vo: boolean
-  violation_count: number
-  is_feasible: boolean
-  limiting_factor: string
+  utility: number
+  benefit_mp: number
+  benefit_vo: number
+  r_tmj: number
+  r_pdl: number
+  feasible: boolean
+  limit_factor: 'feasible' | 'tmj' | 'pdl'
 }
 
-export type AnalysisResponse = {
-  meta: any
-  selected: GridRecord
-  recommended?: GridRecord
-  candidates: GridRecord[]
-  grid: GridRecord[]
-  raw_records: any[]
-  pareto_records: any[]
-  interpretation: {
-    selected_text: string
-    advice: string
-    best_text: string
+export type RecommendV1Response = {
+  status: string
+  scalars: { d: number; j: number; p: number; o: number }
+  best: RecommendPoint
+  alternatives: RecommendPoint[]
+  charts: {
+    best: RecommendPoint
+    alternatives: RecommendPoint[]
+    heatmaps: {
+      utility: [number, number, number][]
+      limit_factor: [number, number, number][]
+    }
+    radar: Array<{
+      name: string
+      mp: number
+      vo: number
+      values: Record<string, number>
+    }>
+    curves: {
+      fix_vo_vary_mp: RecommendPoint[]
+      fix_mp_vary_vo: RecommendPoint[]
+    }
   }
+  meta: any
 }

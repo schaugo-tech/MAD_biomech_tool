@@ -1,178 +1,72 @@
 import { useEffect, useMemo, useState } from 'react'
-import AnatomyScene from './components/AnatomyScene'
 import ChartsPanel from './components/ChartsPanel'
 import ControlPanel from './components/ControlPanel'
 import InsightCard from './components/InsightCard'
-import { analyzeStudy, exportReport, fetchMeta } from './utils/api'
-import type { AnalysisResponse, ConstraintConfig, FormulaConfig, WeightConfig } from './types'
+import { fetchRecommendMeta, previewRecommend } from './utils/api'
+import type { FrontendInputs, RecommendV1Response } from './types'
 
-const defaultConstraints: ConstraintConfig = {
-  tmj_max: 4.5,
-  pdl_lower_max: 5.8,
-  pdl_upper_max: 5.8,
-  max_mp: 70,
-  max_vo: 7,
-}
-
-const defaultWeights: WeightConfig = {
-  safety: 0.45,
-  effectiveness: 0.30,
-  feasibility: 0.20,
-  balance: 0.05,
-}
-
-const defaultFormulas: FormulaConfig = {
-  mp_gain_gamma: 1.2,
-  vo_gain_gamma: 1.1,
-  safety_gamma: 1.35,
-  tradeoff_strength: 0.30,
-  risk_gamma: 1.5,
+const defaultInputs: FrontendInputs = {
+  treatment_need: { ahi: 28, symptom_severity: 'moderate', complaint_strength: 'high' },
+  tmj_sensitivity: { pain_vas: 3, joint_state: 'click', mouth_opening_state: 'normal' },
+  periodontal: { mobility_state: 'stable', bone_loss_state: 'low' },
+  occlusal_need: { deep_overbite: true, occlusal_interference: true, anterior_crossbite: false },
 }
 
 export default function App() {
   const [meta, setMeta] = useState<any>(null)
-  const [selectedMp, setSelectedMp] = useState(60)
-  const [selectedVo, setSelectedVo] = useState(5)
-  const [constraints, setConstraints] = useState<ConstraintConfig>(defaultConstraints)
-  const [weights, setWeights] = useState<WeightConfig>(defaultWeights)
-  const [formulas, setFormulas] = useState<FormulaConfig>(defaultFormulas)
-  const [analysis, setAnalysis] = useState<AnalysisResponse | undefined>(undefined)
+  const [inputs, setInputs] = useState<FrontendInputs>(defaultInputs)
+  const [result, setResult] = useState<RecommendV1Response | undefined>()
   const [loading, setLoading] = useState(false)
-  const [metaError, setMetaError] = useState<string | null>(null)
-  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchMeta()
-      .then((data) => {
-        setMeta(data)
-        setMetaError(null)
-        const defaults = data?.defaults
-        if (defaults) {
-          setSelectedMp(defaults.selected_mp)
-          setSelectedVo(defaults.selected_vo)
-          setConstraints(defaults.constraints)
-          setWeights(defaults.weights)
-          setFormulas(defaults.formulas ?? defaultFormulas)
-        }
-      })
-      .catch((err) => {
-        console.error(err)
-        setMetaError('元信息读取失败，请确认后端 /api/study/meta 可访问。')
-      })
-  }, [])
+  const mpGrid = useMemo(() => Array.from({ length: 21 }, (_, i) => 50 + i), [])
+  const voGrid = useMemo(() => Array.from({ length: 17 }, (_, i) => Number((3 + i * 0.25).toFixed(2))), [])
 
-  const normalizedWeights = useMemo(() => {
-    const sum = weights.safety + weights.effectiveness + weights.feasibility + weights.balance
-    if (sum <= 0) return defaultWeights
-    return {
-      safety: weights.safety / sum,
-      effectiveness: weights.effectiveness / sum,
-      feasibility: weights.feasibility / sum,
-      balance: weights.balance / sum,
-    }
-  }, [weights])
-
-
-  const selectedRecord = useMemo(() => {
-    if (!analysis?.grid?.length) return analysis?.selected
-    return analysis.grid.find((g) => Math.abs(g.mp - selectedMp) < 1e-6 && Math.abs(g.vo - selectedVo) < 1e-6) ?? analysis.selected
-  }, [analysis, selectedMp, selectedVo])
-
-  const runAnalysis = async () => {
+  const run = async () => {
     setLoading(true)
-    setAnalysisError(null)
+    setError(null)
     try {
-      const result = await analyzeStudy({
-        constraints,
-        weights: normalizedWeights,
-        formulas,
-        selected_mp: selectedMp,
-        selected_vo: selectedVo,
-        grid_step_mp: 1,
-        grid_step_vo: 0.25,
-      })
-      setAnalysis(result)
+      const data = await previewRecommend({ inputs, mp_grid: mpGrid, vo_grid: voGrid })
+      setResult(data)
     } catch (err: any) {
-      console.error(err)
-      setAnalysis(undefined)
       const detail = err?.response?.data?.detail ?? err?.message
-      setAnalysisError(detail ? `分析结果拉取失败：${detail}` : '分析结果拉取失败，请确认后端 /api/study/analyze 正常。')
+      setError(detail ? `推荐计算失败：${detail}` : '推荐计算失败')
+      setResult(undefined)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    runAnalysis()
+    fetchRecommendMeta().then(setMeta).catch((e) => setError(`meta 读取失败：${e.message}`))
+    run()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const reset = () => {
-    setSelectedMp(60)
-    setSelectedVo(5)
-    setConstraints(defaultConstraints)
-    setWeights(defaultWeights)
-    setFormulas(defaultFormulas)
-  }
-
-  const recommendedMp = analysis?.recommended?.mp ?? selectedMp
-  const recommendedVo = analysis?.recommended?.vo ?? selectedVo
-
-  const onExport = async () => {
-    if (!analysis) return
-    const text = await exportReport(analysis)
-    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `MAD_report_MP${selectedMp}_VO${selectedVo}.md`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   return (
     <div className="app-shell">
       <header className="app-header">
         <div>
-          <div className="eyebrow">apps.schaugo.com / 研究型工具原型</div>
-          <h1>MAD 生物力学展示与决策工具</h1>
-          <p>预置研究数据驱动的交互式工具：支持 3D 模型查看、MP/VO 调节、结果图联动、推荐方案输出、指标解释与基础报告导出。</p>
+          <div className="eyebrow">MAD V1 Recommendation Engine</div>
+          <h1>MAD 推荐引擎（前端仅输入，后端统一推荐）</h1>
+          <p>已切换为 d/j/p/o 映射 + 收益减风险引擎。前端不再本地拼推荐逻辑，只展示后端 payload。</p>
         </div>
         <div className="header-note">
-          <div>{meta?.study_name ?? '正在读取元信息...'}</div>
+          <div>引擎版本：{meta?.engine_version ?? '读取中...'}</div>
           {meta?.data_file ? <div className="header-sub">数据源：{meta.data_file}</div> : null}
-          {meta?.fit_stats ? <div className="header-sub">拟合R²：TMJ {meta.fit_stats.tmj.r2.toFixed(3)} / PDL-L {meta.fit_stats.pdl_lower.r2.toFixed(3)} / PDL-U {meta.fit_stats.pdl_upper.r2.toFixed(3)}</div> : null}
-          {metaError ? <div className="header-error">{metaError}</div> : null}
+          {error ? <div className="header-error">{error}</div> : null}
         </div>
       </header>
 
       <main className="app-grid">
         <aside className="left-col">
-          <ControlPanel
-            solvedMp={analysis?.recommended?.mp ?? analysis?.selected?.mp ?? selectedMp}
-            solvedVo={analysis?.recommended?.vo ?? analysis?.selected?.vo ?? selectedVo}
-            constraints={constraints}
-            weights={weights}
-            formulas={formulas}
-            loading={loading}
-            onConstraintChange={(key, value) => setConstraints((prev) => ({ ...prev, [key]: value }))}
-            onWeightChange={(key, value) => setWeights((prev) => ({ ...prev, [key]: value }))}
-            onFormulaChange={(key, value) => setFormulas((prev) => ({ ...prev, [key]: value }))}
-            onAnalyze={runAnalysis}
-            onReset={reset}
-          />
+          <ControlPanel inputs={inputs} loading={loading} onInputsChange={setInputs} onAnalyze={run} onReset={() => setInputs(defaultInputs)} />
         </aside>
-
         <section className="center-col">
-          <div className="scene-panel">
-            <AnatomyScene selectedMp={recommendedMp} selectedVo={recommendedVo} />
-          </div>
-          {analysisError ? <div className="panel-inline-error">{analysisError}</div> : null}
-          <ChartsPanel analysis={analysis} selectedMp={selectedMp} selectedVo={selectedVo} onPickPoint={(mp, vo) => { setSelectedMp(mp); setSelectedVo(vo) }} />
+          <ChartsPanel data={result} />
         </section>
-
         <aside className="right-col">
-          <InsightCard selected={selectedRecord} candidates={analysis?.candidates ?? []} interpretation={analysis?.interpretation} onExport={onExport} />
+          <InsightCard data={result} />
         </aside>
       </main>
     </div>
