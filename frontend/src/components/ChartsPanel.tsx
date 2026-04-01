@@ -4,38 +4,54 @@ import PanelCard from './PanelCard'
 
 type Props = { data?: RecommendV1Response }
 
+const base3D = {
+  grid3D: {
+    boxWidth: 120,
+    boxDepth: 90,
+    viewControl: { projection: 'perspective' },
+    light: { main: { intensity: 1.2 }, ambient: { intensity: 0.55 } },
+  },
+  xAxis3D: { type: 'value', name: 'MP(%)' },
+  yAxis3D: { type: 'value', name: 'VO(mm)' },
+}
+
 export default function ChartsPanel({ data }: Props) {
   if (!data) return <PanelCard title="图表区"><div className="compact-note">请先点击“更新推荐”。</div></PanelCard>
 
-  const utility = data.charts.heatmaps.utility
-  const limits = data.charts.heatmaps.limit_factor
-  const mpCurve = data.charts.curves.fix_vo_vary_mp
-  const voCurve = data.charts.curves.fix_mp_vary_vo
+  const surface3d = data.charts.surface3d
 
-  const baseHeat = (title: string, rows: [number, number, number][], max: number, min: number, text: [string, string]) => ({
-    title: { text: title, left: 10, top: 2, textStyle: { color: '#dfe6ff', fontSize: 14 } },
-    grid: { left: 62, right: 24, top: 66, bottom: 46 },
-    xAxis: { type: 'category', name: 'MP %', data: [...new Set(rows.map((r) => r[0]))] },
-    yAxis: { type: 'category', name: 'VO mm', data: [...new Set(rows.map((r) => r[1]))] },
-    visualMap: { min, max, orient: 'horizontal', left: 'center', bottom: 2, text, calculable: true, textStyle: { color: '#cfd7f4' } },
-    tooltip: { formatter: (p: any) => `MP ${p.value[0]}%<br/>VO ${p.value[1]} mm<br/>值 ${Number(p.value[2]).toFixed(3)}` },
-    series: [{ type: 'heatmap', data: rows }],
-    backgroundColor: 'transparent',
-  })
-
-  const curveOption = (title: string, xName: string, points: { mp: number; vo: number; utility: number; r_tmj: number; r_pdl: number }[], xField: 'mp' | 'vo') => ({
-    title: { text: title, left: 10, top: 6, textStyle: { color: '#dfe6ff', fontSize: 14 } },
-    legend: { top: 8, right: 10, textStyle: { color: '#dfe6ff' } },
-    grid: { left: 56, right: 24, top: 44, bottom: 44 },
-    xAxis: { type: 'value', name: xName },
-    yAxis: { type: 'value', name: '值' },
+  const utility3d = data.option_templates?.utility_surface3d_option ?? {
+    ...base3D,
+    title: { text: '综合得分 3D 曲面', left: 10, top: 6, textStyle: { color: '#dfe6ff', fontSize: 14 } },
+    zAxis3D: { type: 'value', name: '综合得分' },
     series: [
-      { name: '综合得分', type: 'line', smooth: true, data: points.map((p) => [p[xField], p.utility]) },
-      { name: 'TMJ风险', type: 'line', smooth: true, data: points.map((p) => [p[xField], p.r_tmj]) },
-      { name: 'PDL风险', type: 'line', smooth: true, data: points.map((p) => [p[xField], p.r_pdl]) },
+      { type: 'surface', name: '综合得分', data: surface3d.utility, wireframe: { show: true } },
+      { type: 'scatter3D', name: '推荐/备选', data: surface3d.recommend_points.utility, symbolSize: 11 },
     ],
     backgroundColor: 'transparent',
-  })
+  }
+
+  const tmj3d = data.option_templates?.tmj_surface3d_option ?? {
+    ...base3D,
+    title: { text: 'TMJ 风险 3D 曲面', left: 10, top: 6, textStyle: { color: '#dfe6ff', fontSize: 14 } },
+    zAxis3D: { type: 'value', name: 'TMJ 风险' },
+    series: [
+      { type: 'surface', name: 'TMJ 风险', data: surface3d.tmj, wireframe: { show: true } },
+      { type: 'scatter3D', name: '推荐/备选', data: surface3d.recommend_points.tmj, symbolSize: 11 },
+    ],
+    backgroundColor: 'transparent',
+  }
+
+  const pdl3d = data.option_templates?.pdl_surface3d_option ?? {
+    ...base3D,
+    title: { text: '前牙 PDL 风险 3D 曲面', left: 10, top: 6, textStyle: { color: '#dfe6ff', fontSize: 14 } },
+    zAxis3D: { type: 'value', name: '前牙 PDL 风险' },
+    series: [
+      { type: 'surface', name: '前牙 PDL 风险', data: surface3d.pdl, wireframe: { show: true } },
+      { type: 'scatter3D', name: '推荐/备选', data: surface3d.recommend_points.pdl, symbolSize: 11 },
+    ],
+    backgroundColor: 'transparent',
+  }
 
   const radarIndicators = Object.keys(data.charts.radar[0]?.values ?? {}).map((k) => ({ name: k, max: 1 }))
   const radarOption = {
@@ -49,10 +65,9 @@ export default function ChartsPanel({ data }: Props) {
 
   return (
     <div className="chart-grid">
-      <PanelCard title="主决策热力图"><ReactECharts option={baseHeat('Utility', utility, Math.max(...utility.map((d) => d[2])), Math.min(...utility.map((d) => d[2])), ['高', '低'])} style={{ height: 320 }} /></PanelCard>
-      <PanelCard title="限制因子热力图"><ReactECharts option={baseHeat('Limit Factor', limits, 2, 0, ['pdl', 'feasible'])} style={{ height: 320 }} /></PanelCard>
-      <PanelCard title="局部响应：固定 VO 看 MP"><ReactECharts option={curveOption('固定 VO 看 MP 变化', 'MP %', mpCurve as any, 'mp')} style={{ height: 320 }} /></PanelCard>
-      <PanelCard title="局部响应：固定 MP 看 VO"><ReactECharts option={curveOption('固定 MP 看 VO 变化', 'VO mm', voCurve as any, 'vo')} style={{ height: 320 }} /></PanelCard>
+      <PanelCard title="综合得分 3D"><ReactECharts option={utility3d} style={{ height: 360 }} /></PanelCard>
+      <PanelCard title="TMJ 风险 3D"><ReactECharts option={tmj3d} style={{ height: 360 }} /></PanelCard>
+      <PanelCard title="前牙 PDL 风险 3D"><ReactECharts option={pdl3d} style={{ height: 360 }} /></PanelCard>
       <PanelCard title="雷达图"><ReactECharts option={radarOption} style={{ height: 320 }} /></PanelCard>
     </div>
   )

@@ -82,12 +82,14 @@ def recommend_v1_preview(req: RecommendV1Request):
             vo_grid=req.vo_grid,
         )
         charts = recommend_v1_service.build_chart_payload(result)
+        option_templates = recommend_v1_service.build_echarts_gl_option_templates(charts)
         return {
             'status': result['status'],
             'scalars': scalars.__dict__,
             'best': result['best'],
             'alternatives': result['alternatives'],
             'charts': charts,
+            'option_templates': option_templates,
             'meta': recommend_v1_service.get_meta(),
         }
     except Exception as exc:

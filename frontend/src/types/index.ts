@@ -49,7 +49,7 @@ export type RecommendPoint = {
 
 export type RecommendV1Response = {
   status: string
-  scalars: { d: number; j: number; p: number; o: number }
+  scalars: { d: number; j: number; p: number; o: number; vo_target_mm: number; vo_need_label: string }
   best: RecommendPoint
   alternatives: RecommendPoint[]
   charts: {
@@ -69,6 +69,21 @@ export type RecommendV1Response = {
       fix_vo_vary_mp: RecommendPoint[]
       fix_mp_vary_vo: RecommendPoint[]
     }
+    surface3d: {
+      utility: [number, number, number][]
+      tmj: [number, number, number][]
+      pdl: [number, number, number][]
+      recommend_points: {
+        utility: Array<{ name: string; value: [number, number, number] }>
+        tmj: Array<{ name: string; value: [number, number, number] }>
+        pdl: Array<{ name: string; value: [number, number, number] }>
+      }
+    }
+  }
+  option_templates?: {
+    utility_surface3d_option: any
+    tmj_surface3d_option: any
+    pdl_surface3d_option: any
   }
   meta: any
 }
