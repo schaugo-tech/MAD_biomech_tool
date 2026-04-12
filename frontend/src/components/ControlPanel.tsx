@@ -57,8 +57,8 @@ export default function ControlPanel({ inputs, loading, onInputsChange, onAnalyz
           </select>
         </label>
         <label className="field"><span>骨丧失状态</span>
-          <select value={inputs.periodontal.bone_loss_state ?? 'low'} onChange={(e) => onInputsChange({ ...inputs, periodontal: { ...inputs.periodontal, bone_loss_state: e.target.value as any } })}>
-            <option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+          <select value={inputs.periodontal.bone_loss_state ?? 'none'} onChange={(e) => onInputsChange({ ...inputs, periodontal: { ...inputs.periodontal, bone_loss_state: e.target.value as any } })}>
+            <option value="none">none</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
           </select>
         </label>
       </PanelCard>

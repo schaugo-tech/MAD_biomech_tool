@@ -38,7 +38,7 @@ COMPLAINT_MAP = {"low": 0.20, "medium": 0.55, "high": 0.90}
 JOINT_STATE_MAP = {"none": 0.00, "click": 0.45, "lock": 0.95}
 MOUTH_OPENING_STATE_TO_MM = {"normal": 45.0, "mildly_limited": 36.0, "limited": 28.0}
 MOBILITY_MAP = {"stable": 0.15, "mild": 0.50, "obvious": 0.90}
-BONE_LOSS_MAP = {"low": 0.20, "medium": 0.55, "high": 0.90}
+BONE_LOSS_MAP = {"none": 0.00, "low": 0.20, "medium": 0.55, "high": 0.90}
 
 
 @dataclass

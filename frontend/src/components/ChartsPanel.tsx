@@ -174,8 +174,8 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
       axisPointer: { show: true, lineStyle: { color: '#ffffff' } },
       viewControl: {
         projection: 'orthographic',
-        alpha: 22,
-        beta: 45,
+        alpha: 20,
+        beta: 225,
         distance: 180,
         rotateSensitivity: 0,
         zoomSensitivity: 0,

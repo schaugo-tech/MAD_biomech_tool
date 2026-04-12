@@ -13,7 +13,7 @@ export type TMJSensitivityInput = {
 
 export type PeriodontalInput = {
   mobility_state?: 'stable' | 'mild' | 'obvious'
-  bone_loss_state?: 'low' | 'medium' | 'high'
+  bone_loss_state?: 'none' | 'low' | 'medium' | 'high'
 }
 
 export type OcclusalNeedInput = {
