@@ -94,3 +94,17 @@ def recommend_v1_preview(req: RecommendV1Request):
         }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post('/v1/recommend/report', response_class=PlainTextResponse)
+def recommend_v1_report(req: RecommendV1Request):
+    try:
+        scalars = recommend_v1_service.map_frontend(req.inputs)
+        result = recommend_v1_service.recommend(
+            scalars=scalars,
+            mp_grid=req.mp_grid,
+            vo_grid=req.vo_grid,
+        )
+        return recommend_v1_service.build_report_text(req.inputs, result, scalars)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

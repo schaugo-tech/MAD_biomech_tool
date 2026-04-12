@@ -50,6 +50,17 @@ button, input { font: inherit; }
 .selected-table { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; color: #d6e4ff; }
 @media (max-width: 1480px) { .app-grid { grid-template-columns: 280px minmax(0, 1fr); } .right-col { grid-column: 1 / -1; max-height: none; } }
 @media (max-width: 1080px) { .app-shell { height: auto; overflow: visible; } .app-grid { grid-template-columns: 1fr; } .left-col, .right-col, .center-col { max-height: none; overflow: visible; } .chart-grid { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .app-shell { padding: 10px; }
+  .app-header { flex-direction: column; gap: 12px; margin-bottom: 12px; }
+  .app-header h1 { font-size: 20px; }
+  .panel-card__header { padding: 10px 12px 8px; }
+  .panel-card__body { padding: 10px 12px 12px; }
+  .scene-wrap { height: 320px; }
+  .metric-grid { grid-template-columns: 1fr; }
+  .button-row { position: static; }
+  .btn { width: 100%; }
+}
 
 
 .scope-list { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 8px; font-size: 13px; line-height: 1.5; }

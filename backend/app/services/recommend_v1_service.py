@@ -260,15 +260,17 @@ class RecommendV1Service:
         benefit_mp = self._benefit_mp(mp, s.mp_target_pct)
         benefit_vo = self._benefit_vo_target(vo, s.vo_target_mm)
         constraints = self._hard_constraints(risks['r_tmj'], risks['r_pdl'], s.j, s.p)
-        utility = (
+        raw_utility = (
             self.weights.benefit_mp * benefit_mp
             + self.weights.benefit_vo_target * benefit_vo
             - self.weights.risk_tmj * risks['r_tmj']
             - self.weights.risk_pdl * risks['r_pdl']
         )
+        utility = 60.0 + 40.0 * clip01(raw_utility)
         return {
             'mp': float(mp), 'vo': float(vo), 'benefit_mp': float(benefit_mp), 'benefit_vo': float(benefit_vo),
-            'mp_target_pct': float(s.mp_target_pct), 'vo_target_mm': float(s.vo_target_mm), **risks, **constraints, 'utility': float(utility),
+            'mp_target_pct': float(s.mp_target_pct), 'vo_target_mm': float(s.vo_target_mm),
+            'raw_utility': float(raw_utility), **risks, **constraints, 'utility': float(utility),
         }
 
     def evaluate_grid(self, s: BackendScalars, mp_grid: Optional[List[float]], vo_grid: Optional[List[float]]) -> List[Dict[str, Any]]:
@@ -394,10 +396,41 @@ class RecommendV1Service:
             'weights': self.weights.__dict__,
             'thresholds': self.thresholds.__dict__,
             'grid_defaults': {
-                'mp_grid': list(np.arange(50, 70.1, 1.0)),
-                'vo_grid': list(np.arange(3, 7.01, 0.25)),
+                'mp_grid': list(np.arange(50, 70.1, 5.0)),
+                'vo_grid': list(np.arange(3, 7.01, 0.5)),
             },
         }
+
+    def build_report_text(self, req: FrontendInputs, recommendation: Dict[str, Any], scalars: BackendScalars) -> str:
+        best = recommendation['best']
+        lines = [
+            '# MAD 推荐报告（V1）',
+            '',
+            '## 输入条件',
+            f"- AHI 分档: {req.treatment_need.ahi_band or 'N/A'}",
+            f"- TMJ: pain_vas={req.tmj_sensitivity.pain_vas}, joint_state={req.tmj_sensitivity.joint_state}, mouth_opening_state={req.tmj_sensitivity.mouth_opening_state}",
+            f"- 牙周: mobility_state={req.periodontal.mobility_state}, bone_loss_state={req.periodontal.bone_loss_state}",
+            f"- 咬合: deep_overbite={req.occlusal_need.deep_overbite}, occlusal_interference={req.occlusal_need.occlusal_interference}, anterior_crossbite={req.occlusal_need.anterior_crossbite}",
+            '',
+            '## 连续参数映射',
+            f"- d={scalars.d:.3f}, j={scalars.j:.3f}, p={scalars.p:.3f}, o={scalars.o:.3f}",
+            f"- MP target={scalars.mp_target_pct:.2f} %, VO target={scalars.vo_target_mm:.2f} mm",
+            '',
+            '## 推荐值（最佳点）',
+            f"- MP={best['mp']:.1f} %, VO={best['vo']:.2f} mm, 综合得分={best['utility']:.2f}/100",
+            f"- 关节盘应力 TMJ={best['raw_tmj']:.4f} MPa (归一化风险={best['r_tmj']:.4f})",
+            f"- 下前牙 PDL={best['raw_low']:.4f} kPa，上前牙 PDL={best['raw_up']:.4f} kPa",
+            f"- 前牙PDL综合风险={best['r_pdl']:.4f}",
+            '',
+            '## 备选点',
+        ]
+        for idx, alt in enumerate(recommendation['alternatives'], start=1):
+            lines.extend([
+                f"### 备选 {idx}",
+                f"- MP={alt['mp']:.1f} %, VO={alt['vo']:.2f} mm, 综合得分={alt['utility']:.2f}/100",
+                f"- TMJ={alt['raw_tmj']:.4f} MPa, 下前牙PDL={alt['raw_low']:.4f} kPa, 上前牙PDL={alt['raw_up']:.4f} kPa",
+            ])
+        return '\n'.join(lines)
 
 
 recommend_v1_service = RecommendV1Service()

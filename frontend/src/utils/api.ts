@@ -17,3 +17,8 @@ export async function previewRecommend(payload: RecommendV1Request) {
   const { data } = await api.post<RecommendV1Response>('/v1/recommend/preview', payload)
   return data
 }
+
+export async function exportRecommendReport(payload: RecommendV1Request) {
+  const { data } = await api.post('/v1/recommend/report', payload, { responseType: 'text' })
+  return data as string
+}

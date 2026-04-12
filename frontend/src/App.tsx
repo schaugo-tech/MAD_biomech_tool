@@ -3,7 +3,7 @@ import AnatomyScene from './components/AnatomyScene'
 import ChartsPanel from './components/ChartsPanel'
 import ControlPanel from './components/ControlPanel'
 import InsightCard from './components/InsightCard'
-import { fetchRecommendMeta, previewRecommend } from './utils/api'
+import { exportRecommendReport, fetchRecommendMeta, previewRecommend } from './utils/api'
 import type { FrontendInputs, RecommendV1Response } from './types'
 
 const defaultInputs: FrontendInputs = {
@@ -22,8 +22,8 @@ export default function App() {
   const [sceneMp, setSceneMp] = useState(60)
   const [sceneVo, setSceneVo] = useState(5)
 
-  const mpGrid = useMemo(() => Array.from({ length: 21 }, (_, i) => 50 + i), [])
-  const voGrid = useMemo(() => Array.from({ length: 17 }, (_, i) => Number((3 + i * 0.25).toFixed(2))), [])
+  const mpGrid = useMemo(() => Array.from({ length: 5 }, (_, i) => 50 + i * 5), [])
+  const voGrid = useMemo(() => Array.from({ length: 9 }, (_, i) => Number((3 + i * 0.5).toFixed(2))), [])
 
   const run = async () => {
     setLoading(true)
@@ -40,6 +40,17 @@ export default function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const onExportReport = async () => {
+    const text = await exportRecommendReport({ inputs, mp_grid: mpGrid, vo_grid: voGrid })
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `mad_recommend_report_${new Date().toISOString().slice(0, 10)}.md`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   useEffect(() => {
@@ -85,7 +96,7 @@ export default function App() {
           <ChartsPanel data={result} selectedMp={sceneMp} selectedVo={sceneVo} />
         </section>
         <aside className="right-col">
-          <InsightCard data={result} />
+          <InsightCard data={result} onExportReport={onExportReport} />
         </aside>
       </main>
     </div>

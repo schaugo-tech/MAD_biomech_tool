@@ -1,12 +1,12 @@
 import type { RecommendV1Response } from '../types'
 import PanelCard from './PanelCard'
 
-type Props = { data?: RecommendV1Response }
+type Props = { data?: RecommendV1Response; onExportReport?: () => void }
 
-export default function InsightCard({ data }: Props) {
+export default function InsightCard({ data, onExportReport }: Props) {
   if (!data) return <PanelCard title="推荐摘要"><div className="compact-note">等待计算。</div></PanelCard>
 
-  const { best, alternatives, status } = data
+  const { best, alternatives } = data
 
   return (
     <div className="control-stack">
@@ -15,8 +15,8 @@ export default function InsightCard({ data }: Props) {
           <div className="metric-box"><span>推荐 MP</span><strong>{best.mp.toFixed(1)}%</strong></div>
           <div className="metric-box"><span>推荐 VO</span><strong>{best.vo.toFixed(2)} mm</strong></div>
           <div className="metric-box"><span>综合得分</span><strong>{best.utility.toFixed(3)}</strong></div>
-          <div className="metric-box"><span>状态</span><strong>{status}</strong></div>
         </div>
+        {onExportReport ? <button className="btn btn-primary" onClick={onExportReport}>导出报告</button> : null}
       </PanelCard>
 
       <PanelCard title="备选点">
@@ -26,7 +26,6 @@ export default function InsightCard({ data }: Props) {
               <div><strong>备选 {idx + 1}</strong></div>
               <div>MP {c.mp.toFixed(1)}% / VO {c.vo.toFixed(2)} mm</div>
               <div>score {c.utility.toFixed(3)}</div>
-              <div>限制因子：{c.limit_factor}</div>
             </div>
           ))}
         </div>
