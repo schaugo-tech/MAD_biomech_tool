@@ -31,7 +31,7 @@ export default function ControlPanel({ inputs, loading, onInputsChange, onAnalyz
         </label>
         <label className="field">
           <span>关节状态</span>
-          <select value={inputs.tmj_sensitivity.joint_state ?? 'click'} onChange={(e) => onInputsChange({ ...inputs, tmj_sensitivity: { ...inputs.tmj_sensitivity, joint_state: e.target.value as any } })}>
+          <select value={inputs.tmj_sensitivity.joint_state ?? 'none'} onChange={(e) => onInputsChange({ ...inputs, tmj_sensitivity: { ...inputs.tmj_sensitivity, joint_state: e.target.value as any } })}>
             <option value="none">none</option><option value="click">click</option><option value="lock">lock</option>
           </select>
         </label>

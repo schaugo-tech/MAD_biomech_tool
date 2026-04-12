@@ -433,32 +433,45 @@ class RecommendV1Service:
         return '\n'.join(lines)
 
     @staticmethod
-    def _build_simple_pdf(lines: List[str]) -> bytes:
-        def esc(s: str) -> str:
-            return s.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    def _build_styled_cjk_pdf(best: Dict[str, Any], req: FrontendInputs, scalars: BackendScalars) -> bytes:
+        def uhex(s: str) -> str:
+            return s.encode('utf-16-be').hex().upper()
 
-        width, height = 595, 842  # A4
-        y = 810
-        line_h = 14
-        text_cmds = ["BT", "/F1 11 Tf", f"1 0 0 1 40 {y} Tm"]
-        first = True
-        for line in lines:
-            if not first:
-                text_cmds.append(f"0 -{line_h} Td")
-            first = False
-            text_cmds.append(f"({esc(line)[:180]}) Tj")
-            y -= line_h
-            if y < 40:
-                break
-        text_cmds.append("ET")
-        stream = "\n".join(text_cmds).encode("latin-1", errors="replace")
+        cmds = []
+        # Header background
+        cmds += ["0.14 0.32 0.65 rg", "35 780 525 40 re f"]
+        # Title
+        cmds += ["BT", "/F1 18 Tf", "1 1 1 rg", "45 794 Td", f"<{uhex('MAD 推荐报告（V1）')}> Tj", "ET"]
+        # Section title + key-value table look
+        y = 748
+        cmds += ["0.20 0.24 0.30 RG", "1 w"]
+        table_rows = [
+            ("AHI分档", req.treatment_need.ahi_band or "N/A"),
+            ("TMJ状态", f"VAS={req.tmj_sensitivity.pain_vas}, state={req.tmj_sensitivity.joint_state}, opening={req.tmj_sensitivity.mouth_opening_state}"),
+            ("牙周状态", f"mobility={req.periodontal.mobility_state}, bone_loss={req.periodontal.bone_loss_state}"),
+            ("咬合状态", f"overbite={req.occlusal_need.deep_overbite}, interference={req.occlusal_need.occlusal_interference}, crossbite={req.occlusal_need.anterior_crossbite}"),
+            ("参数映射", f"d={scalars.d:.3f}, j={scalars.j:.3f}, p={scalars.p:.3f}, o={scalars.o:.3f}"),
+            ("推荐值", f"MP={best['mp']:.1f}%, VO={best['vo']:.2f}mm, score={best['utility']:.2f}/100"),
+            ("关节盘应力", f"TMJ={best['raw_tmj']:.4f} MPa, risk={best['r_tmj']:.4f}"),
+            ("牙周膜应力", f"PDL_low={best['raw_low']:.4f} kPa, PDL_up={best['raw_up']:.4f} kPa, risk={best['r_pdl']:.4f}"),
+        ]
+        for idx, (k, v) in enumerate(table_rows):
+            bg = "0.95 0.97 1.0 rg" if idx % 2 == 0 else "1 1 1 rg"
+            cmds += [bg, f"35 {y-24} 525 24 re f", "0.75 0.82 0.95 RG", f"35 {y-24} 525 24 re S"]
+            cmds += ["BT", "/F1 11 Tf", "0.10 0.14 0.20 rg", f"42 {y-17} Td", f"<{uhex(k)}> Tj", "ET"]
+            cmds += ["BT", "/F1 10 Tf", "0.16 0.20 0.28 rg", f"140 {y-17} Td", f"<{uhex(v[:80])}> Tj", "ET"]
+            y -= 24
+
+        cmds += ["BT", "/F1 9 Tf", "0.45 0.50 0.60 rg", "35 42 Td", f"<{uhex('注：本报告为量化计算结果，建议结合临床检查综合判断。')}> Tj", "ET"]
+        stream = "\n".join(cmds).encode("latin-1")
 
         objects = [
             b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
             b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-            f"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj".encode(),
-            b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-            b"5 0 obj << /Length " + str(len(stream)).encode() + b" >> stream\n" + stream + b"\nendstream endobj",
+            b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 6 0 R >> endobj",
+            b"4 0 obj << /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /UniGB-UCS2-H /DescendantFonts [5 0 R] >> endobj",
+            b"5 0 obj << /Type /Font /Subtype /CIDFontType0 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 4 >> >> endobj",
+            b"6 0 obj << /Length " + str(len(stream)).encode() + b" >> stream\n" + stream + b"\nendstream endobj",
         ]
 
         out = b"%PDF-1.4\n"
@@ -475,9 +488,8 @@ class RecommendV1Service:
         return out
 
     def build_report_pdf_bytes(self, req: FrontendInputs, recommendation: Dict[str, Any], scalars: BackendScalars) -> bytes:
-        text = self.build_report_text(req, recommendation, scalars)
-        lines = [ln for ln in text.splitlines() if ln.strip()]
-        return self._build_simple_pdf(lines)
+        best = recommendation['best']
+        return self._build_styled_cjk_pdf(best, req, scalars)
 
 
 recommend_v1_service = RecommendV1Service()

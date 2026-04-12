@@ -228,7 +228,7 @@ export default function ChartsPanel({ data, selectedMp, selectedVo }: Props) {
   const radarOption = {
     title: { text: '推荐点 vs 备选点（雷达）', left: 10, top: 6, textStyle: { color: '#dfe6ff', fontSize: 14 } },
     tooltip: {},
-    legend: { top: 8, right: 10, textStyle: { color: '#dfe6ff' } },
+    legend: { bottom: 8, left: 'center', textStyle: { color: '#dfe6ff' } },
     radar: { indicator: radarIndicators },
     series: [{ type: 'radar', data: data.charts.radar.map((r) => ({ name: r.name, value: Object.values(r.values) })) }],
     backgroundColor: 'transparent',

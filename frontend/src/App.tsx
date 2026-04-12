@@ -8,7 +8,7 @@ import type { FrontendInputs, RecommendV1Response } from './types'
 
 const defaultInputs: FrontendInputs = {
   treatment_need: { ahi_band: '15to30' },
-  tmj_sensitivity: { pain_vas: 3, joint_state: 'click', mouth_opening_state: 'normal' },
+  tmj_sensitivity: { pain_vas: 3, joint_state: 'none', mouth_opening_state: 'normal' },
   periodontal: { mobility_state: 'stable', bone_loss_state: 'none' },
   occlusal_need: { deep_overbite: true, occlusal_interference: true, anterior_crossbite: false },
 }
@@ -95,9 +95,12 @@ export default function App() {
           <ChartsPanel data={result} selectedMp={sceneMp} selectedVo={sceneVo} />
         </section>
         <aside className="right-col">
-          <InsightCard data={result} onExportReport={onExportReport} />
+          <InsightCard data={result} />
         </aside>
       </main>
+      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>
+        <button className="btn btn-primary" onClick={onExportReport}>导出 PDF 报告</button>
+      </div>
     </div>
   )
 }
