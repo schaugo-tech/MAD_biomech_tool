@@ -83,7 +83,7 @@ export default function App() {
               <button className="btn" onClick={() => { if (result) { setSceneMp(result.best.mp); setSceneVo(result.best.vo) } }}>同步推荐位姿</button>
             </div>
           </div>
-          <ChartsPanel data={result} />
+          <ChartsPanel data={result} selectedMp={sceneMp} selectedVo={sceneVo} />
         </section>
         <aside className="right-col">
           <InsightCard data={result} />
