@@ -37,8 +37,12 @@ export type RecommendPoint = {
   mp: number
   vo: number
   utility: number
+  raw_utility?: number
   benefit_mp: number
   benefit_vo: number
+  raw_tmj?: number
+  raw_low?: number
+  raw_up?: number
   r_tmj: number
   r_pdl: number
   feasible: boolean

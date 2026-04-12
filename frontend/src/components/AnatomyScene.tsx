@@ -64,7 +64,7 @@ function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: 
   const jawOffset = useMemo(() => [0, -mpShift, voDrop] as [number, number, number], [mpShift, voDrop])
 
   return (
-    <group>
+    <group rotation={[0, 0, Math.PI / 2]}>
       {manifest.map((item) => {
         const isMandibleGroup = item.file.includes('mandible') || item.file.includes('teeth_lower')
         const offset: [number, number, number] = isMandibleGroup ? jawOffset : [0, 0, 0]

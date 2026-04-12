@@ -3,7 +3,7 @@ import AnatomyScene from './components/AnatomyScene'
 import ChartsPanel from './components/ChartsPanel'
 import ControlPanel from './components/ControlPanel'
 import InsightCard from './components/InsightCard'
-import { exportRecommendReport, fetchRecommendMeta, previewRecommend } from './utils/api'
+import { fetchRecommendMeta, previewRecommend } from './utils/api'
 import type { FrontendInputs, RecommendV1Response } from './types'
 
 const defaultInputs: FrontendInputs = {
@@ -43,13 +43,47 @@ export default function App() {
   }
 
   const onExportReport = async () => {
-    const blob = await exportRecommendReport({ inputs, mp_grid: mpGrid, vo_grid: voGrid })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `mad_recommend_report_${new Date().toISOString().slice(0, 10)}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
+    if (!result) return
+    const chartCanvases = Array.from(document.querySelectorAll('.chart-grid canvas')) as HTMLCanvasElement[]
+    const sceneCanvas = document.querySelector('.scene-wrap canvas') as HTMLCanvasElement | null
+    const chartImgs = chartCanvases.map((c) => c.toDataURL('image/png'))
+    const sceneImg = sceneCanvas ? sceneCanvas.toDataURL('image/png') : ''
+
+    const conclusion = `推荐值为 MP ${result.best.mp.toFixed(1)}% / VO ${result.best.vo.toFixed(2)} mm；综合得分 ${result.best.utility.toFixed(2)}/100。在当前输入下，TMJ=${result.best.raw_tmj?.toFixed?.(4) ?? '-'} MPa，PDL下前牙=${result.best.raw_low?.toFixed?.(4) ?? '-'} kPa，PDL上前牙=${result.best.raw_up?.toFixed?.(4) ?? '-'} kPa。`
+    const altRows = result.alternatives.map((a, i) => `<tr><td>${i + 1}</td><td>${a.mp.toFixed(1)}%</td><td>${a.vo.toFixed(2)} mm</td><td>${a.utility.toFixed(2)}</td><td>${a.raw_tmj?.toFixed?.(4) ?? '-'}</td><td>${a.raw_low?.toFixed?.(4) ?? '-'}</td><td>${a.raw_up?.toFixed?.(4) ?? '-'}</td></tr>`).join('')
+
+    const html = `
+<!doctype html><html><head><meta charset="utf-8"/><title>MAD推荐报告</title>
+<style>
+body{font-family:Arial,'PingFang SC','Microsoft YaHei',sans-serif;margin:20px;color:#1c2638}
+h1{color:#214f9b} h2{color:#2b3f66;margin-top:20px}
+table{width:100%;border-collapse:collapse;margin-top:8px} th,td{border:1px solid #c9d6ef;padding:8px;font-size:12px;word-break:break-word}
+th{background:#ecf3ff}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.img{width:100%;border:1px solid #d9e2f5;border-radius:6px}
+.box{background:#f8fbff;border:1px solid #d8e3f7;padding:12px;border-radius:8px;line-height:1.7}
+</style></head><body>
+<h1>MAD 推荐报告</h1>
+<div class="box">
+<b>输入条件</b><br/>AHI分档：${inputs.treatment_need.ahi_band}<br/>
+TMJ：VAS=${inputs.tmj_sensitivity.pain_vas}，state=${inputs.tmj_sensitivity.joint_state}，opening=${inputs.tmj_sensitivity.mouth_opening_state}<br/>
+牙周：mobility=${inputs.periodontal.mobility_state}，bone_loss=${inputs.periodontal.bone_loss_state}<br/>
+咬合：overbite=${inputs.occlusal_need.deep_overbite}，interference=${inputs.occlusal_need.occlusal_interference}，crossbite=${inputs.occlusal_need.anterior_crossbite}
+</div>
+<h2>推荐结论</h2><div class="box">${conclusion}</div>
+<h2>备选点</h2><table><thead><tr><th>#</th><th>MP</th><th>VO</th><th>得分</th><th>TMJ(MPa)</th><th>PDL下(kPa)</th><th>PDL上(kPa)</th></tr></thead><tbody>${altRows}</tbody></table>
+<h2>图像证据</h2><div class="grid">
+${sceneImg ? `<div><div>牙颌模型</div><img class="img" src="${sceneImg}"/></div>` : ''}
+${chartImgs[0] ? `<div><div>综合得分3D</div><img class="img" src="${chartImgs[0]}"/></div>` : ''}
+${chartImgs[1] ? `<div><div>TMJ风险3D</div><img class="img" src="${chartImgs[1]}"/></div>` : ''}
+${chartImgs[2] ? `<div><div>前牙PDL风险3D</div><img class="img" src="${chartImgs[2]}"/></div>` : ''}
+${chartImgs[3] ? `<div><div>雷达图</div><img class="img" src="${chartImgs[3]}"/></div>` : ''}
+</div>
+</body></html>`
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 300)
   }
 
   useEffect(() => {
@@ -96,11 +130,11 @@ export default function App() {
         </section>
         <aside className="right-col">
           <InsightCard data={result} />
+          <div style={{ marginTop: 12 }}>
+            <button className="btn btn-primary" onClick={onExportReport}>导出 PDF 报告</button>
+          </div>
         </aside>
       </main>
-      <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>
-        <button className="btn btn-primary" onClick={onExportReport}>导出 PDF 报告</button>
-      </div>
     </div>
   )
 }

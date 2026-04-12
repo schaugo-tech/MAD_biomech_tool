@@ -165,7 +165,7 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
       boxWidth: 120,
       boxDepth: 95,
       boxHeight: 75,
-      environment: chartTheme.background,
+      environment: '#f5f8ff',
       axisPointer: { show: true, lineStyle: { color: '#ffffff' } },
       viewControl: {
         projection: 'orthographic',
@@ -202,6 +202,7 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
         label: { show: false },
       },
     ],
+    backgroundColor: 'transparent',
   }
 }
 
