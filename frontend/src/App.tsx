@@ -43,12 +43,11 @@ export default function App() {
   }
 
   const onExportReport = async () => {
-    const text = await exportRecommendReport({ inputs, mp_grid: mpGrid, vo_grid: voGrid })
-    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
+    const blob = await exportRecommendReport({ inputs, mp_grid: mpGrid, vo_grid: voGrid })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `mad_recommend_report_${new Date().toISOString().slice(0, 10)}.md`
+    a.download = `mad_recommend_report_${new Date().toISOString().slice(0, 10)}.pdf`
     a.click()
     URL.revokeObjectURL(url)
   }

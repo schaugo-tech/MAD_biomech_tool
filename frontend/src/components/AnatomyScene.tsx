@@ -107,10 +107,13 @@ export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
     <div className="scene-wrap scene-wrap--bright">
       <Canvas
         orthographic
-        camera={{ position: [8, 6, 8], zoom: 85 }}
+        camera={{ position: [10, -10, 8], zoom: 85 }}
         gl={{ antialias: true }}
         dpr={[1, 2]}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, camera }) => {
+          camera.up.set(0, 0, 1) // z 轴朝上
+          camera.lookAt(0, 0, 0) // y 轴水平展开
+          camera.updateProjectionMatrix()
           gl.outputColorSpace = THREE.SRGBColorSpace
           gl.toneMapping = THREE.ACESFilmicToneMapping
           gl.toneMappingExposure = 1.2

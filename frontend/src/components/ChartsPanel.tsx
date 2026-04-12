@@ -221,7 +221,10 @@ export default function ChartsPanel({ data, selectedMp, selectedVo }: Props) {
   const tmj3d = buildSurfaceOption('TMJ 风险 3D 拟合曲面', 'TMJ 风险', surface3d.tmj, selectedTmj, domain)
   const pdl3d = buildSurfaceOption('前牙 PDL 风险 3D 拟合曲面', '前牙 PDL 风险', surface3d.pdl, selectedPdl, domain)
 
-  const radarIndicators = Object.keys(data.charts.radar[0]?.values ?? {}).map((k) => ({ name: k, max: 1 }))
+  const radarIndicators = Object.keys(data.charts.radar[0]?.values ?? {}).map((k) => ({
+    name: k,
+    max: k === '综合得分' ? 100 : 1,
+  }))
   const radarOption = {
     title: { text: '推荐点 vs 备选点（雷达）', left: 10, top: 6, textStyle: { color: '#dfe6ff', fontSize: 14 } },
     tooltip: {},

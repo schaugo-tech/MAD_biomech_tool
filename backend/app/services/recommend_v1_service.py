@@ -432,5 +432,52 @@ class RecommendV1Service:
             ])
         return '\n'.join(lines)
 
+    @staticmethod
+    def _build_simple_pdf(lines: List[str]) -> bytes:
+        def esc(s: str) -> str:
+            return s.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+
+        width, height = 595, 842  # A4
+        y = 810
+        line_h = 14
+        text_cmds = ["BT", "/F1 11 Tf", f"1 0 0 1 40 {y} Tm"]
+        first = True
+        for line in lines:
+            if not first:
+                text_cmds.append(f"0 -{line_h} Td")
+            first = False
+            text_cmds.append(f"({esc(line)[:180]}) Tj")
+            y -= line_h
+            if y < 40:
+                break
+        text_cmds.append("ET")
+        stream = "\n".join(text_cmds).encode("latin-1", errors="replace")
+
+        objects = [
+            b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+            b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+            f"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj".encode(),
+            b"4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
+            b"5 0 obj << /Length " + str(len(stream)).encode() + b" >> stream\n" + stream + b"\nendstream endobj",
+        ]
+
+        out = b"%PDF-1.4\n"
+        offsets = [0]
+        for obj in objects:
+            offsets.append(len(out))
+            out += obj + b"\n"
+        xref_pos = len(out)
+        out += f"xref\n0 {len(objects)+1}\n".encode()
+        out += b"0000000000 65535 f \n"
+        for off in offsets[1:]:
+            out += f"{off:010d} 00000 n \n".encode()
+        out += f"trailer << /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n".encode()
+        return out
+
+    def build_report_pdf_bytes(self, req: FrontendInputs, recommendation: Dict[str, Any], scalars: BackendScalars) -> bytes:
+        text = self.build_report_text(req, recommendation, scalars)
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        return self._build_simple_pdf(lines)
+
 
 recommend_v1_service = RecommendV1Service()

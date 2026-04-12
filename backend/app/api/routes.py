@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 
 from app.models.schemas import AnalysisRequest, RecommendV1Request, ReportRequest
 from app.services.recommend_v1_service import recommend_v1_service
@@ -96,7 +96,7 @@ def recommend_v1_preview(req: RecommendV1Request):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post('/v1/recommend/report', response_class=PlainTextResponse)
+@router.post('/v1/recommend/report', response_class=Response)
 def recommend_v1_report(req: RecommendV1Request):
     try:
         scalars = recommend_v1_service.map_frontend(req.inputs)
@@ -105,6 +105,11 @@ def recommend_v1_report(req: RecommendV1Request):
             mp_grid=req.mp_grid,
             vo_grid=req.vo_grid,
         )
-        return recommend_v1_service.build_report_text(req.inputs, result, scalars)
+        pdf_bytes = recommend_v1_service.build_report_pdf_bytes(req.inputs, result, scalars)
+        return Response(
+            content=pdf_bytes,
+            media_type='application/pdf',
+            headers={'Content-Disposition': 'attachment; filename="mad_recommend_report.pdf"'},
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
