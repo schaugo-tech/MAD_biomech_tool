@@ -118,15 +118,10 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
   const selectedFront: Triple = [selected[0], selected[1], selected[2] + lift]
 
   return {
-    title: { text: title, left: 8, top: 4, textStyle: { color: '#e5eeff', fontSize: 14, fontWeight: 600 } },
-    tooltip: {
-      formatter: (p: any) => {
-        const value: Triple = p.value ?? p.data?.value ?? [0, 0, 0]
-        return `MP: ${Number(value[0]).toFixed(1)}%<br/>VO: ${Number(value[1]).toFixed(2)} mm<br/>${zName}: ${Number(value[2]).toFixed(4)}`
-      },
-    },
+    title: { show: false },
+    tooltip: { show: false },
     visualMap: {
-      show: true,
+      show: false,
       min: zMin,
       max: zMax,
       calculable: true,
@@ -140,28 +135,28 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
     },
     xAxis3D: {
       type: 'value',
-      name: 'MP(%)',
+      name: '',
       min: domain.minMp,
       max: domain.maxMp,
-      axisLabel: { color: chartTheme.axisText },
+      axisLabel: { show: false },
       nameTextStyle: { color: chartTheme.axisText },
       axisLine: { lineStyle: { color: chartTheme.axisLine } },
       splitLine: { lineStyle: { color: chartTheme.splitLine } },
     },
     yAxis3D: {
       type: 'value',
-      name: 'VO(mm)',
+      name: '',
       min: domain.minVo,
       max: domain.maxVo,
-      axisLabel: { color: chartTheme.axisText },
+      axisLabel: { show: false },
       nameTextStyle: { color: chartTheme.axisText },
       axisLine: { lineStyle: { color: chartTheme.axisLine } },
       splitLine: { lineStyle: { color: chartTheme.splitLine } },
     },
     zAxis3D: {
       type: 'value',
-      name: zName,
-      axisLabel: { color: chartTheme.axisText },
+      name: '',
+      axisLabel: { show: false },
       nameTextStyle: { color: chartTheme.axisText },
       axisLine: { lineStyle: { color: chartTheme.axisLine } },
       splitLine: { lineStyle: { color: chartTheme.splitLine } },
@@ -204,14 +199,7 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
         symbolSize: 16,
         itemStyle: { color: '#ff5f6d', borderColor: '#fff', borderWidth: 1.4, opacity: 1 },
         emphasis: { itemStyle: { color: '#ff2f44', borderColor: '#fff', borderWidth: 2 } },
-        label: {
-          show: true,
-          formatter: '当前选择',
-          color: '#ffe8ec',
-          backgroundColor: 'rgba(0,0,0,0.45)',
-          padding: [2, 6],
-          borderRadius: 3,
-        },
+        label: { show: false },
       },
     ],
   }

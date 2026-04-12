@@ -130,10 +130,11 @@ class RecommendV1Service:
     def map_frontend(self, inputs: FrontendInputs) -> BackendScalars:
         d = self._map_treatment_need(inputs)
         o, vo_label = self._map_occlusal_need(inputs)
-        j = self._map_tmj_sensitivity(inputs)
+        j = self._map_tmj_sensitivity(inputs, include_opening=False)
+        j_vo = self._map_tmj_sensitivity(inputs, include_opening=True)
         p = self._map_periodontal(inputs)
         mp_target = self._mp_target_with_need(j, p, d)
-        vo_target = self._vo_target_from_need(o, j)
+        vo_target = self._vo_target_from_need(o, j_vo)
         return BackendScalars(
             d=d,
             j=j,
@@ -156,18 +157,19 @@ class RecommendV1Service:
             return AHI_BAND_MAP[t.ahi_band]
         return 0.50
 
-    def _map_tmj_sensitivity(self, inputs: FrontendInputs) -> float:
+    def _map_tmj_sensitivity(self, inputs: FrontendInputs, include_opening: bool = True) -> float:
         t = inputs.tmj_sensitivity
         parts, weights = [], []
         if t.pain_vas is not None:
-            parts.append(minmax_norm(t.pain_vas, 0.0, 10.0)); weights.append(0.50)
+            parts.append(minmax_norm(t.pain_vas, 0.0, 10.0)); weights.append(0.55 if include_opening else 0.60)
         if t.joint_state in JOINT_STATE_MAP:
-            parts.append(JOINT_STATE_MAP[t.joint_state]); weights.append(0.35)
-        mouth_mm = t.mouth_opening_mm
-        if mouth_mm is None and t.mouth_opening_state in MOUTH_OPENING_STATE_TO_MM:
-            mouth_mm = MOUTH_OPENING_STATE_TO_MM[t.mouth_opening_state]
-        if mouth_mm is not None:
-            parts.append(clip01((45.0 - mouth_mm) / 20.0)); weights.append(0.15)
+            parts.append(JOINT_STATE_MAP[t.joint_state]); weights.append(0.45 if include_opening else 0.40)
+        if include_opening:
+            mouth_mm = t.mouth_opening_mm
+            if mouth_mm is None and t.mouth_opening_state in MOUTH_OPENING_STATE_TO_MM:
+                mouth_mm = MOUTH_OPENING_STATE_TO_MM[t.mouth_opening_state]
+            if mouth_mm is not None:
+                parts.append(clip01((45.0 - mouth_mm) / 20.0)); weights.append(0.15)
         return self._merge(parts, weights, 0.40)
 
     def _map_periodontal(self, inputs: FrontendInputs) -> float:
@@ -209,8 +211,9 @@ class RecommendV1Service:
         h_lim = clip01(0.75 * j + 0.25 * p)
         if h_lim <= 1e-9:
             return 70.0
-        # 限制条件下，由治疗需求 d 抵消一部分下压（d 越高越偏向维持高 MP）
-        h_eff = clip01(h_lim * (1.0 - 0.55 * d))
+        # 限制条件下，由治疗需求 d 抵消一部分下压；
+        # 当限制已很高(h_lim接近1)时，d 的抵消作用自动变弱，确保最差状态可逼近 50%。
+        h_eff = clip01(h_lim * (1.0 - 0.45 * d * (1.0 - h_lim)))
         return 70.0 - 20.0 * (h_eff ** 1.6)
 
     def _predict_raw(self, mp: float, vo: float) -> Dict[str, float]:

@@ -54,8 +54,8 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
 }
 
 function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: ManifestItem[] }) {
-  const mpShift = (selectedMp - 50) * 0.038
-  const voDrop = (selectedVo - 3) * 0.085
+  const mpShift = (selectedMp - 50) * 0.072
+  const voDrop = (selectedVo - 3) * 0.16
   // 按反馈修正方向符号：MP 与 VO 的运动方向均做正负号翻转
   const jawOffset = useMemo(() => [0, -mpShift, voDrop] as [number, number, number], [mpShift, voDrop])
 
