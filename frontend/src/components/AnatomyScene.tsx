@@ -1,5 +1,5 @@
 import { Canvas, useThree } from '@react-three/fiber'
-import { ArcballControls, Bounds, GizmoHelper, GizmoViewcube, Grid, Html, useGLTF } from '@react-three/drei'
+import { ArcballControls, Bounds, GizmoHelper, GizmoViewcube, Grid, useGLTF } from '@react-three/drei'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import * as THREE from 'three'
@@ -54,8 +54,12 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
 }
 
 function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: ManifestItem[] }) {
-  const mpShift = (selectedMp - 50) * 0.072
-  const voDrop = (selectedVo - 3) * 0.16
+  // 运动幅度缩放系数（按产品反馈扩大 10 倍）：
+  // - MP: 每 +1% 前伸，对应 0.72 的模型位移（原 0.072）
+  // - VO: 每 +1mm 开口，对应 1.60 的模型位移（原 0.16）
+  // 若后续还需调整，只改这两个系数即可，其他逻辑无需改动。
+  const mpShift = (selectedMp - 50) * 0.72
+  const voDrop = (selectedVo - 3) * 1.6
   // 按反馈修正方向符号：MP 与 VO 的运动方向均做正负号翻转
   const jawOffset = useMemo(() => [0, -mpShift, voDrop] as [number, number, number], [mpShift, voDrop])
 
@@ -67,9 +71,6 @@ function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: 
         return <ModelPart key={item.file} item={item} offset={offset} withLocalAxes={item.file.includes('mandible')} />
       })}
       <axesHelper args={[1.4]} />
-      <Html position={[0, 2.6, 0]} center>
-        <div className="scene-badge">推荐位姿：MP {selectedMp.toFixed(1)}% · VO {selectedVo.toFixed(2)} mm</div>
-      </Html>
     </group>
   )
 }

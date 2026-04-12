@@ -71,7 +71,7 @@ export default function App() {
           <div className="scene-panel">
             <AnatomyScene selectedMp={sceneMp} selectedVo={sceneVo} />
             <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="compact-note">3D 位姿交互：可手动拖动 MP/VO 预览，或点击“同步推荐位姿”。</div>
+              <div className="compact-note">3D 位姿交互：更新推荐后自动同步位姿；也可手动拖动 MP/VO 预览。</div>
               <label className="field">
                 <span>MP：{sceneMp.toFixed(1)}%</span>
                 <input type="range" min={50} max={70} step={0.5} value={sceneMp} onChange={(e) => setSceneMp(Number(e.target.value))} />
@@ -80,7 +80,6 @@ export default function App() {
                 <span>VO：{sceneVo.toFixed(2)} mm</span>
                 <input type="range" min={3} max={7} step={0.25} value={sceneVo} onChange={(e) => setSceneVo(Number(e.target.value))} />
               </label>
-              <button className="btn" onClick={() => { if (result) { setSceneMp(result.best.mp); setSceneVo(result.best.vo) } }}>同步推荐位姿</button>
             </div>
           </div>
           <ChartsPanel data={result} selectedMp={sceneMp} selectedVo={sceneVo} />

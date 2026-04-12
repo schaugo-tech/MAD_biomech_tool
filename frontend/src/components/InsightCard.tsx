@@ -6,7 +6,7 @@ type Props = { data?: RecommendV1Response }
 export default function InsightCard({ data }: Props) {
   if (!data) return <PanelCard title="推荐摘要"><div className="compact-note">等待计算。</div></PanelCard>
 
-  const { best, alternatives, scalars, status } = data
+  const { best, alternatives, status } = data
 
   return (
     <div className="control-stack">
@@ -17,17 +17,6 @@ export default function InsightCard({ data }: Props) {
           <div className="metric-box"><span>综合得分</span><strong>{best.utility.toFixed(3)}</strong></div>
           <div className="metric-box"><span>状态</span><strong>{status}</strong></div>
         </div>
-      </PanelCard>
-
-      <PanelCard title="后台连续参数 (d/j/p/o)">
-        <ul className="scope-list">
-          <li>d（治疗需求强度）= {scalars.d.toFixed(3)}</li>
-          <li>j（关节敏感度）= {scalars.j.toFixed(3)}</li>
-          <li>p（前牙牙周敏感度）= {scalars.p.toFixed(3)}</li>
-          <li>o（咬合抬高需求）= {scalars.o.toFixed(3)}</li>
-          <li>MP 目标中心 = {scalars.mp_target_pct.toFixed(2)}%</li>
-          <li>VO 目标中心 = {scalars.vo_target_mm.toFixed(2)} mm（{scalars.vo_need_label}）</li>
-        </ul>
       </PanelCard>
 
       <PanelCard title="备选点">
