@@ -1,6 +1,7 @@
-import { Canvas } from '@react-three/fiber'
-import { ArcballControls, Bounds, GizmoHelper, GizmoViewcube, Grid, Html, useGLTF } from '@react-three/drei'
+import { Canvas, useThree } from '@react-three/fiber'
+import { ArcballControls, Bounds, GizmoHelper, GizmoViewcube, Grid, useGLTF } from '@react-three/drei'
 import { Suspense, useEffect, useMemo, useState } from 'react'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import * as THREE from 'three'
 
 type Props = {
@@ -21,10 +22,11 @@ function buildMaterial(item: ManifestItem) {
     color: new THREE.Color(item.color),
     transparent: item.opacity < 1,
     opacity: item.opacity,
+    side: THREE.DoubleSide,
   }
   if (item.style === 'Wireframe') return new THREE.MeshBasicMaterial({ ...common, wireframe: true })
-  if (item.style === 'Physical') return new THREE.MeshPhysicalMaterial({ ...common, roughness: 0.65, metalness: 0.1, clearcoat: 0.2 })
-  return new THREE.MeshStandardMaterial({ ...common, roughness: 0.7, metalness: 0.12 })
+  if (item.style === 'Physical') return new THREE.MeshPhysicalMaterial({ ...common, roughness: 0.42, metalness: 0.02, clearcoat: 0.08, emissive: new THREE.Color(item.color).multiplyScalar(0.14) })
+  return new THREE.MeshStandardMaterial({ ...common, roughness: 0.42, metalness: 0.02, emissive: new THREE.Color(item.color).multiplyScalar(0.16) })
 }
 
 function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: ManifestItem, offset?: [number, number, number], withLocalAxes?: boolean }) {
@@ -34,9 +36,14 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
     const mat = buildMaterial(item)
     cloned.traverse((obj) => {
       if ((obj as THREE.Mesh).isMesh) {
-        ;(obj as THREE.Mesh).material = mat
-        obj.castShadow = true
-        obj.receiveShadow = true
+        const mesh = obj as THREE.Mesh
+        const geom = mesh.geometry as THREE.BufferGeometry
+        if (geom && !geom.attributes.normal) {
+          geom.computeVertexNormals()
+        }
+        mesh.material = mat
+        mesh.castShadow = false
+        mesh.receiveShadow = false
       }
     })
     if (withLocalAxes) cloned.add(new THREE.AxesHelper(0.85))
@@ -47,23 +54,46 @@ function ModelPart({ item, offset = [0, 0, 0], withLocalAxes = false }: { item: 
 }
 
 function AnatomyModel({ selectedMp, selectedVo, manifest }: Props & { manifest: ManifestItem[] }) {
-  const mandibleX = (selectedMp - 50) * 0.035
-  const biteOpen = (selectedVo - 3) * 0.08
-  const jawOffset = useMemo(() => [mandibleX, -biteOpen, 0] as [number, number, number], [mandibleX, biteOpen])
+  // 运动幅度缩放系数（按产品反馈扩大 10 倍）：
+  // - MP: 每 +1% 前伸，对应 0.72 的模型位移（原 0.072）
+  // - VO: 每 +1mm 开口，对应 1.60 的模型位移（原 0.16）
+  // 若后续还需调整，只改这两个系数即可，其他逻辑无需改动。
+  const mpShift = (selectedMp - 50) * 0.72
+  const voDrop = (selectedVo - 3) * 1.6
+  // 按反馈修正方向符号：MP 与 VO 的运动方向均做正负号翻转
+  const jawOffset = useMemo(() => [0, -mpShift, voDrop] as [number, number, number], [mpShift, voDrop])
 
   return (
-    <group>
+    <group rotation={[0, 0, Math.PI / 2]}>
       {manifest.map((item) => {
         const isMandibleGroup = item.file.includes('mandible') || item.file.includes('teeth_lower')
         const offset: [number, number, number] = isMandibleGroup ? jawOffset : [0, 0, 0]
         return <ModelPart key={item.file} item={item} offset={offset} withLocalAxes={item.file.includes('mandible')} />
       })}
       <axesHelper args={[1.4]} />
-      <Html position={[0, 2.6, 0]} center>
-        <div className="scene-badge">MP {selectedMp.toFixed(1)}% · VO {selectedVo.toFixed(2)} mm</div>
-      </Html>
     </group>
   )
+}
+
+
+function SceneEnvironment() {
+  const { gl, scene } = useThree()
+
+  useEffect(() => {
+    const pmremGenerator = new THREE.PMREMGenerator(gl)
+    const envScene = new RoomEnvironment()
+    const envRT = pmremGenerator.fromScene(envScene)
+    scene.environment = envRT.texture
+
+    return () => {
+      scene.environment = null
+      envRT.dispose()
+      pmremGenerator.dispose()
+      envScene.dispose()
+    }
+  }, [gl, scene])
+
+  return null
 }
 
 export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
@@ -75,10 +105,28 @@ export default function AnatomyScene({ selectedMp, selectedVo }: Props) {
 
   return (
     <div className="scene-wrap scene-wrap--bright">
-      <Canvas orthographic camera={{ position: [8, 6, 8], zoom: 85 }} shadows>
-        <ambientLight intensity={1.1} />
-        <directionalLight position={[6, 10, 7]} intensity={1.15} castShadow />
-        <directionalLight position={[-6, 5, -7]} intensity={0.55} />
+      <Canvas
+        orthographic
+        camera={{ position: [0, -12, -8], zoom: 85 }}
+        gl={{ antialias: true }}
+        dpr={[1, 2]}
+        onCreated={({ gl, camera }) => {
+          camera.up.set(0, 0, -1) // 翻转 z 轴上下方向
+          camera.lookAt(0, 0, 0) // x 轴作为水平向
+          camera.updateProjectionMatrix()
+          gl.outputColorSpace = THREE.SRGBColorSpace
+          gl.toneMapping = THREE.ACESFilmicToneMapping
+          gl.toneMappingExposure = 1.2
+          gl.physicallyCorrectLights = true
+        }}
+      >
+        <color attach="background" args={["#f3f8ff"]} />
+        <SceneEnvironment />
+        <hemisphereLight intensity={1.0} color="#ffffff" groundColor="#c6d8ee" />
+        <ambientLight intensity={1.55} />
+        <directionalLight position={[8, 12, 8]} intensity={1.05} />
+        <directionalLight position={[-7, 7, -8]} intensity={0.75} />
+        <pointLight position={[0, 6, 3]} intensity={0.4} />
 
         <Suspense fallback={null}>
           {manifest.length > 0 ? (

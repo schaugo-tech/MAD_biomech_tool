@@ -105,8 +105,15 @@ class StudyService:
                 'weights': {
                     'safety': 0.45,
                     'effectiveness': 0.30,
-                    'comfort': 0.15,
-                    'balance': 0.10,
+                    'feasibility': 0.20,
+                    'balance': 0.05,
+                },
+                'formulas': {
+                    'mp_gain_gamma': 1.2,
+                    'vo_gain_gamma': 1.1,
+                    'safety_gamma': 1.35,
+                    'tradeoff_strength': 0.30,
+                    'risk_gamma': 1.5,
                 },
             },
         }
@@ -155,21 +162,28 @@ class StudyService:
     def _apply_scoring(self, df: pd.DataFrame, req: AnalysisRequest) -> pd.DataFrame:
         c = req.constraints
         w = req.weights
+        f = req.formulas
         df = df.copy()
 
-        df['score_tmj_minmax'] = self._safe_score(df['tmj'])
-        df['score_pdl_lower_minmax'] = self._safe_score(df['pdl_lower'])
-        df['score_pdl_upper_minmax'] = self._safe_score(df['pdl_upper'])
-        df['score_effectiveness'] = self._minmax_positive(df['mp'])
-        df['score_comfort'] = np.clip(1 - np.abs(df['vo'] - 5.0) / 2.0, 0, 1)
+        df['score_tmj_minmax'] = np.power(self._safe_score(df['tmj']), f.safety_gamma)
+        df['score_pdl_lower_minmax'] = np.power(self._safe_score(df['pdl_lower']), f.safety_gamma)
+        df['score_pdl_upper_minmax'] = np.power(self._safe_score(df['pdl_upper']), f.safety_gamma)
+
+        df['score_effectiveness'] = np.power(self._minmax_positive(df['mp']), f.mp_gain_gamma)
+        df['score_feasibility'] = np.power(self._minmax_positive(df['vo']), f.vo_gain_gamma)
         df['score_balance'] = 1 - np.clip(np.abs(df['pdl_lower'] - df['pdl_upper']) / 3.0, 0, 1)
 
         df['score_safety'] = (df['score_tmj_minmax'] + df['score_pdl_lower_minmax'] + df['score_pdl_upper_minmax']) / 3
+        df['risk_index'] = 1 - df['score_safety']
+        df['drive_index'] = (df['score_effectiveness'] + df['score_feasibility']) / 2
+        df['score_tradeoff_penalty'] = f.tradeoff_strength * df['drive_index'] * np.power(df['risk_index'], f.risk_gamma)
+
         df['overall_score'] = (
             w.safety * df['score_safety']
             + w.effectiveness * df['score_effectiveness']
-            + w.comfort * df['score_comfort']
+            + w.feasibility * df['score_feasibility']
             + w.balance * df['score_balance']
+            - df['score_tradeoff_penalty']
         )
 
         df['constraint_tmj'] = df['tmj'] > c.tmj_max
@@ -195,6 +209,12 @@ class StudyService:
             target = df.assign(distance=(df['mp'] - req.selected_mp) ** 2 + (df['vo'] - req.selected_vo) ** 2).sort_values('distance').head(1)
         return target.iloc[0].to_dict()
 
+    def _best_recommendation(self, df: pd.DataFrame) -> Dict:
+        feasible = df[df['is_feasible']].sort_values(['overall_score', 'score_safety'], ascending=False)
+        if not feasible.empty:
+            return feasible.iloc[0].to_dict()
+        return df.sort_values(['overall_score', 'score_safety'], ascending=False).iloc[0].to_dict()
+
     def analyze(self, req: AnalysisRequest):
         mp_values = np.arange(50, req.constraints.max_mp + 1e-9, req.grid_step_mp)
         vo_values = np.arange(3, req.constraints.max_vo + 1e-9, req.grid_step_vo)
@@ -208,6 +228,7 @@ class StudyService:
         return {
             'meta': self.meta,
             'selected': selected,
+            'recommended': self._best_recommendation(grid),
             'candidates': candidates,
             'grid': grid.round(4).to_dict(orient='records'),
             'raw_records': self.get_raw_records(),
@@ -250,7 +271,7 @@ class StudyService:
             '## 拟合与评分说明',
             '- 数据源：backend/data/关节盘及牙齿应力数据.xlsx（离散实验点）。',
             '- 拟合：二次多项式回归（tmj、pdl_lower、pdl_upper）。',
-            '- 评分：Min-Max 映射；应力项越小分越高，前导量 MP 越大分越高。',
+            '- 评分：MP 越大越好、VO 越大越好、应力越小越好。通过可调公式引入“高推进-高风险”惩罚，实现非单调权衡。',
             '',
             '## 推荐方案',
         ]
