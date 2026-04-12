@@ -47,26 +47,27 @@ class BackendScalars:
     j: float
     p: float
     o: float
+    mp_target_pct: float
     vo_target_mm: float
     vo_need_label: str
 
 
 @dataclass
 class ScoreWeights:
-    benefit_mp: float = 0.44
-    benefit_vo_target: float = 0.16
-    risk_tmj: float = 0.24
-    risk_pdl: float = 0.16
+    benefit_mp: float = 0.55
+    benefit_vo_target: float = 0.30
+    risk_tmj: float = 0.10
+    risk_pdl: float = 0.05
     low_pdl_ratio: float = 0.70
     up_pdl_ratio: float = 0.30
 
 
 @dataclass
 class ThresholdParams:
-    tmj_base: float = 0.90
-    tmj_penalty: float = 0.40
-    pdl_base: float = 0.92
-    pdl_penalty: float = 0.24
+    tmj_base: float = 1.00
+    tmj_penalty: float = 0.55
+    pdl_base: float = 1.00
+    pdl_penalty: float = 0.35
 
 
 class RecommendV1Service:
@@ -124,11 +125,15 @@ class RecommendV1Service:
 
     def map_frontend(self, inputs: FrontendInputs) -> BackendScalars:
         o, vo_target, vo_label = self._map_occlusal_need(inputs)
+        j = self._map_tmj_sensitivity(inputs)
+        p = self._map_periodontal(inputs)
+        mp_target = self._mp_target_from_limits(j, p)
         return BackendScalars(
             d=self._map_treatment_need(inputs),
-            j=self._map_tmj_sensitivity(inputs),
-            p=self._map_periodontal(inputs),
+            j=j,
+            p=p,
             o=o,
+            mp_target_pct=mp_target,
             vo_target_mm=vo_target,
             vo_need_label=vo_label,
         )
@@ -176,10 +181,22 @@ class RecommendV1Service:
     @staticmethod
     def _map_occlusal_need(inputs: FrontendInputs) -> Tuple[float, float, str]:
         o = inputs.occlusal_need
-        score = 0.45 * float(o.deep_overbite) + 0.35 * float(o.occlusal_interference) + 0.20 * float(o.anterior_crossbite)
-        score = clip01(score)
-        vo_target = 3.0 + 1.8 * float(o.deep_overbite) + 1.2 * float(o.occlusal_interference) + 0.8 * float(o.anterior_crossbite)
-        vo_target = clip(vo_target, 3.0, 7.0)
+        d = float(o.deep_overbite)
+        i = float(o.occlusal_interference)
+        c = float(o.anterior_crossbite)
+        score = clip01(0.50 * d + 0.30 * i + 0.20 * c)
+
+        if d >= 0.5:
+            vo_pref = 5.8 + 0.8 * i + 0.6 * c
+        else:
+            vo_pref = 3.0 + 1.0 * i + 0.8 * c
+        vo_pref = clip(vo_pref, 3.0, 7.0)
+
+        mouth_state = inputs.tmj_sensitivity.mouth_opening_state or 'normal'
+        vo_cap_map = {'normal': 7.0, 'mildly_limited': 6.5, 'limited': 5.5}
+        vo_cap = vo_cap_map.get(mouth_state, 7.0)
+        vo_target = min(vo_pref, vo_cap)
+
         if score < 0.10:
             label = 'very_low'
         elif score < 0.35:
@@ -189,6 +206,11 @@ class RecommendV1Service:
         else:
             label = 'high'
         return score, vo_target, label
+
+    @staticmethod
+    def _mp_target_from_limits(j: float, p: float) -> float:
+        h_mp = clip01(0.75 * j + 0.25 * p)
+        return 70.0 - 20.0 * (h_mp ** 1.6)
 
     def _predict_raw(self, mp: float, vo: float) -> Dict[str, float]:
         x = np.array([[mp, vo]], dtype=float)
@@ -210,18 +232,12 @@ class RecommendV1Service:
         }
 
     @staticmethod
-    def _benefit_mp(mp: float, d: float, mp_min: float, mp_max: float) -> float:
-        x = minmax_norm(mp, mp_min, mp_max)
-        k = 0.8 + 1.2 * d
-        return saturating_gain(x, k)
+    def _benefit_mp(mp: float, mp_target_pct: float, sigma_mp: float = 4.5) -> float:
+        return clip01(math.exp(-((mp - mp_target_pct) ** 2) / (2.0 * sigma_mp ** 2)))
 
     @staticmethod
-    def _benefit_vo_target(vo: float, vo_target_mm: float, o: float) -> float:
-        under = max(0.0, vo_target_mm - vo)
-        over = max(0.0, vo - vo_target_mm)
-        under_sigma = clip(1.15 - 0.45 * o, 0.45, 1.20)
-        over_sigma = clip(0.75 + 0.65 * o, 0.70, 1.40)
-        return clip01(math.exp(- (under / under_sigma) ** 2 - (over / over_sigma) ** 2))
+    def _benefit_vo_target(vo: float, vo_target_mm: float, sigma_vo: float = 0.70) -> float:
+        return clip01(math.exp(-((vo - vo_target_mm) ** 2) / (2.0 * sigma_vo ** 2)))
 
     def _hard_constraints(self, r_tmj: float, r_pdl: float, j: float, p: float) -> Dict[str, Any]:
         tmj_cap = self.thresholds.tmj_base - self.thresholds.tmj_penalty * j
@@ -237,20 +253,18 @@ class RecommendV1Service:
 
     def evaluate_point(self, mp: float, vo: float, s: BackendScalars) -> Dict[str, Any]:
         risks = self._predict_risks(mp, vo)
-        benefit_mp = self._benefit_mp(mp, s.d, min(self.mp_values), max(self.mp_values))
-        benefit_vo = self._benefit_vo_target(vo, s.vo_target_mm, s.o)
+        benefit_mp = self._benefit_mp(mp, s.mp_target_pct)
+        benefit_vo = self._benefit_vo_target(vo, s.vo_target_mm)
         constraints = self._hard_constraints(risks['r_tmj'], risks['r_pdl'], s.j, s.p)
-        tmj_multiplier = 0.50 + 1.20 * s.j
-        pdl_multiplier = 0.55 + 0.95 * s.p
         utility = (
             self.weights.benefit_mp * benefit_mp
             + self.weights.benefit_vo_target * benefit_vo
-            - self.weights.risk_tmj * tmj_multiplier * risks['r_tmj']
-            - self.weights.risk_pdl * pdl_multiplier * risks['r_pdl']
+            - self.weights.risk_tmj * risks['r_tmj']
+            - self.weights.risk_pdl * risks['r_pdl']
         )
         return {
             'mp': float(mp), 'vo': float(vo), 'benefit_mp': float(benefit_mp), 'benefit_vo': float(benefit_vo),
-            'vo_target_mm': float(s.vo_target_mm), **risks, **constraints, 'utility': float(utility),
+            'mp_target_pct': float(s.mp_target_pct), 'vo_target_mm': float(s.vo_target_mm), **risks, **constraints, 'utility': float(utility),
         }
 
     def evaluate_grid(self, s: BackendScalars, mp_grid: Optional[List[float]], vo_grid: Optional[List[float]]) -> List[Dict[str, Any]]:
@@ -264,8 +278,26 @@ class RecommendV1Service:
         if feasible:
             best, alternatives, status = feasible[0], feasible[1:4], 'feasible_recommendation'
         else:
-            ranked = sorted(grid, key=lambda x: x['utility'], reverse=True)
-            best, alternatives, status = ranked[0], ranked[1:4], 'approximate_recommendation'
+            best = None
+            alternatives: List[Dict[str, Any]] = []
+            status = 'approximate_recommendation'
+            base_tmj_cap = clip01(self.thresholds.tmj_base - self.thresholds.tmj_penalty * scalars.j)
+            base_pdl_cap = clip01(self.thresholds.pdl_base - self.thresholds.pdl_penalty * scalars.p)
+            for relax in [1.05, 1.10]:
+                tmj_cap = clip01(base_tmj_cap * relax)
+                pdl_cap = clip01(base_pdl_cap * relax)
+                relaxed = sorted(
+                    [g for g in grid if g['r_tmj'] <= tmj_cap and g['r_pdl'] <= pdl_cap],
+                    key=lambda x: x['utility'],
+                    reverse=True,
+                )
+                if relaxed:
+                    best, alternatives = relaxed[0], relaxed[1:4]
+                    status = f'approximate_recommendation_relaxed_{int((relax - 1.0) * 100)}'
+                    break
+            if best is None:
+                ranked = sorted(grid, key=lambda x: x['utility'], reverse=True)
+                best, alternatives, status = ranked[0], ranked[1:4], 'approximate_recommendation_unconstrained'
         return {'status': status, 'best': best, 'alternatives': alternatives, 'grid': grid}
 
     def build_chart_payload(self, recommendation: Dict[str, Any]) -> Dict[str, Any]:

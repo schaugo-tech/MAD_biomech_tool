@@ -25,6 +25,8 @@ export default function InsightCard({ data }: Props) {
           <li>j（关节敏感度）= {scalars.j.toFixed(3)}</li>
           <li>p（前牙牙周敏感度）= {scalars.p.toFixed(3)}</li>
           <li>o（咬合抬高需求）= {scalars.o.toFixed(3)}</li>
+          <li>MP 目标中心 = {scalars.mp_target_pct.toFixed(2)}%</li>
+          <li>VO 目标中心 = {scalars.vo_target_mm.toFixed(2)} mm（{scalars.vo_need_label}）</li>
         </ul>
       </PanelCard>
 

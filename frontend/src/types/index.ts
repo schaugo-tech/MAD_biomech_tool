@@ -49,7 +49,7 @@ export type RecommendPoint = {
 
 export type RecommendV1Response = {
   status: string
-  scalars: { d: number; j: number; p: number; o: number; vo_target_mm: number; vo_need_label: string }
+  scalars: { d: number; j: number; p: number; o: number; mp_target_pct: number; vo_target_mm: number; vo_need_label: string }
   best: RecommendPoint
   alternatives: RecommendPoint[]
   charts: {
