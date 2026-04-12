@@ -16,7 +16,7 @@ const chartTheme = {
   axisText: '#dbe7ff',
   axisLine: '#93a6cb',
   splitLine: 'rgba(152,175,214,0.26)',
-  background: 'transparent',
+  background: '#111b2d',
 }
 
 function estimateZ(surface: Triple[], mp: number, vo: number): number {
@@ -114,7 +114,7 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
   const zValues = data.map((d) => d[2])
   const zMin = Math.min(...zValues)
   const zMax = Math.max(...zValues)
-  const lift = Math.max((zMax - zMin) * 0.03, 0.01)
+  const lift = Math.max((zMax - zMin) * 0.10, 0.02)
   const selectedFront: Triple = [selected[0], selected[1], selected[2] + lift]
 
   return {
@@ -165,7 +165,7 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
       boxWidth: 120,
       boxDepth: 95,
       boxHeight: 75,
-      environment: '#f5f8ff',
+      environment: chartTheme.background,
       axisPointer: { show: true, lineStyle: { color: '#ffffff' } },
       viewControl: {
         projection: 'orthographic',
@@ -189,7 +189,7 @@ function buildSurfaceOption(title: string, zName: string, rawData: Triple[], sel
         data,
         wireframe: { show: false },
         shading: 'lambert',
-        itemStyle: { opacity: 0.96 },
+        itemStyle: { opacity: 0.55 },
       },
       {
         type: 'scatter3D',

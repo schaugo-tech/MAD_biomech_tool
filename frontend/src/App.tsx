@@ -45,9 +45,7 @@ export default function App() {
   const onExportReport = async () => {
     if (!result) return
     const chartCanvases = Array.from(document.querySelectorAll('.chart-grid canvas')) as HTMLCanvasElement[]
-    const sceneCanvas = document.querySelector('.scene-wrap canvas') as HTMLCanvasElement | null
     const chartImgs = chartCanvases.map((c) => c.toDataURL('image/png'))
-    const sceneImg = sceneCanvas ? sceneCanvas.toDataURL('image/png') : ''
 
     const conclusion = `推荐值为 MP ${result.best.mp.toFixed(1)}% / VO ${result.best.vo.toFixed(2)} mm；综合得分 ${result.best.utility.toFixed(2)}/100。在当前输入下，TMJ=${result.best.raw_tmj?.toFixed?.(4) ?? '-'} MPa，PDL下前牙=${result.best.raw_low?.toFixed?.(4) ?? '-'} kPa，PDL上前牙=${result.best.raw_up?.toFixed?.(4) ?? '-'} kPa。`
     const altRows = result.alternatives.map((a, i) => `<tr><td>${i + 1}</td><td>${a.mp.toFixed(1)}%</td><td>${a.vo.toFixed(2)} mm</td><td>${a.utility.toFixed(2)}</td><td>${a.raw_tmj?.toFixed?.(4) ?? '-'}</td><td>${a.raw_low?.toFixed?.(4) ?? '-'}</td><td>${a.raw_up?.toFixed?.(4) ?? '-'}</td></tr>`).join('')
@@ -71,7 +69,6 @@ TMJ：VAS=${inputs.tmj_sensitivity.pain_vas}，state=${inputs.tmj_sensitivity.jo
 <h2>推荐结论</h2><div class="box">${conclusion}</div>
 <h2>备选点</h2><table><thead><tr><th>#</th><th>MP</th><th>VO</th><th>得分</th><th>TMJ(MPa)</th><th>PDL下(kPa)</th><th>PDL上(kPa)</th></tr></thead><tbody>${altRows}</tbody></table>
 <h2>图像证据</h2><div class="grid">
-${sceneImg ? `<div><div>牙颌模型</div><img class="img" src="${sceneImg}"/></div>` : ''}
 ${chartImgs[0] ? `<div><div>综合得分3D</div><img class="img" src="${chartImgs[0]}"/></div>` : ''}
 ${chartImgs[1] ? `<div><div>TMJ风险3D</div><img class="img" src="${chartImgs[1]}"/></div>` : ''}
 ${chartImgs[2] ? `<div><div>前牙PDL风险3D</div><img class="img" src="${chartImgs[2]}"/></div>` : ''}
