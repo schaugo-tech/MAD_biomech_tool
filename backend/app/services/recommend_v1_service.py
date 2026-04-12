@@ -33,8 +33,12 @@ def saturating_gain(x: float, k: float = 1.0) -> float:
     return float(1.0 - math.exp(-k * x))
 
 
-SYMPTOM_MAP = {"mild": 0.25, "moderate": 0.60, "severe": 0.90}
-COMPLAINT_MAP = {"low": 0.20, "medium": 0.55, "high": 0.90}
+AHI_BAND_MAP = {
+    "lt5": 0.00,
+    "5to15": 0.35,
+    "15to30": 0.65,
+    "gt30": 0.90,
+}
 JOINT_STATE_MAP = {"none": 0.00, "click": 0.45, "lock": 0.95}
 MOUTH_OPENING_STATE_TO_MM = {"normal": 45.0, "mildly_limited": 36.0, "limited": 28.0}
 MOBILITY_MAP = {"stable": 0.15, "mild": 0.50, "obvious": 0.90}
@@ -124,12 +128,14 @@ class RecommendV1Service:
         self.model_up = self._make_model().fit(x, self.df[self.COL_UP].values)
 
     def map_frontend(self, inputs: FrontendInputs) -> BackendScalars:
-        o, vo_target, vo_label = self._map_occlusal_need(inputs)
+        d = self._map_treatment_need(inputs)
+        o, vo_label = self._map_occlusal_need(inputs)
         j = self._map_tmj_sensitivity(inputs)
         p = self._map_periodontal(inputs)
-        mp_target = self._mp_target_from_limits(j, p)
+        mp_target = self._mp_target_with_need(j, p, d)
+        vo_target = self._vo_target_from_need(o, j)
         return BackendScalars(
-            d=self._map_treatment_need(inputs),
+            d=d,
             j=j,
             p=p,
             o=o,
@@ -146,14 +152,9 @@ class RecommendV1Service:
 
     def _map_treatment_need(self, inputs: FrontendInputs) -> float:
         t = inputs.treatment_need
-        parts, weights = [], []
-        if t.ahi is not None:
-            parts.append(minmax_norm(t.ahi, 5.0, 60.0)); weights.append(0.50)
-        if t.symptom_severity in SYMPTOM_MAP:
-            parts.append(SYMPTOM_MAP[t.symptom_severity]); weights.append(0.30)
-        if t.complaint_strength in COMPLAINT_MAP:
-            parts.append(COMPLAINT_MAP[t.complaint_strength]); weights.append(0.20)
-        return self._merge(parts, weights, 0.50)
+        if t.ahi_band in AHI_BAND_MAP:
+            return AHI_BAND_MAP[t.ahi_band]
+        return 0.50
 
     def _map_tmj_sensitivity(self, inputs: FrontendInputs) -> float:
         t = inputs.tmj_sensitivity
@@ -179,23 +180,12 @@ class RecommendV1Service:
         return self._merge(parts, weights, 0.35)
 
     @staticmethod
-    def _map_occlusal_need(inputs: FrontendInputs) -> Tuple[float, float, str]:
+    def _map_occlusal_need(inputs: FrontendInputs) -> Tuple[float, str]:
         o = inputs.occlusal_need
         d = float(o.deep_overbite)
         i = float(o.occlusal_interference)
         c = float(o.anterior_crossbite)
         score = clip01(0.50 * d + 0.30 * i + 0.20 * c)
-
-        if d >= 0.5:
-            vo_pref = 5.8 + 0.8 * i + 0.6 * c
-        else:
-            vo_pref = 3.0 + 1.0 * i + 0.8 * c
-        vo_pref = clip(vo_pref, 3.0, 7.0)
-
-        mouth_state = inputs.tmj_sensitivity.mouth_opening_state or 'normal'
-        vo_cap_map = {'normal': 7.0, 'mildly_limited': 6.5, 'limited': 5.5}
-        vo_cap = vo_cap_map.get(mouth_state, 7.0)
-        vo_target = min(vo_pref, vo_cap)
 
         if score < 0.10:
             label = 'very_low'
@@ -205,12 +195,23 @@ class RecommendV1Service:
             label = 'medium'
         else:
             label = 'high'
-        return score, vo_target, label
+        return score, label
 
     @staticmethod
-    def _mp_target_from_limits(j: float, p: float) -> float:
-        h_mp = clip01(0.75 * j + 0.25 * p)
-        return 70.0 - 20.0 * (h_mp ** 1.6)
+    def _vo_target_from_need(o: float, j: float) -> float:
+        # 基线约 5mm，咬合需求上推至 7mm；仅在关节敏感度高时明显下压。
+        vo_pref = 5.0 + 2.0 * o
+        penalty = 2.0 * (j ** 1.35) * ((1.0 - o) ** 1.2)
+        return clip(vo_pref - penalty, 3.0, 7.0)
+
+    @staticmethod
+    def _mp_target_with_need(j: float, p: float, d: float) -> float:
+        h_lim = clip01(0.75 * j + 0.25 * p)
+        if h_lim <= 1e-9:
+            return 70.0
+        # 限制条件下，由治疗需求 d 抵消一部分下压（d 越高越偏向维持高 MP）
+        h_eff = clip01(h_lim * (1.0 - 0.55 * d))
+        return 70.0 - 20.0 * (h_eff ** 1.6)
 
     def _predict_raw(self, mp: float, vo: float) -> Dict[str, float]:
         x = np.array([[mp, vo]], dtype=float)
@@ -381,8 +382,7 @@ class RecommendV1Service:
             'engine_version': 'MAD_v2',
             'data_file': self.data_path.name,
             'maps': {
-                'symptom_severity': SYMPTOM_MAP,
-                'complaint_strength': COMPLAINT_MAP,
+                'ahi_band': AHI_BAND_MAP,
                 'joint_state': JOINT_STATE_MAP,
                 'mouth_opening_state': MOUTH_OPENING_STATE_TO_MM,
                 'mobility_state': MOBILITY_MAP,

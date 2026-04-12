@@ -43,9 +43,7 @@ class ReportRequest(BaseModel):
 # ===== V1 推荐引擎输入 =====
 
 class TreatmentNeedInput(BaseModel):
-    ahi: Optional[float] = None
-    symptom_severity: Optional[str] = None
-    complaint_strength: Optional[str] = None
+    ahi_band: Optional[str] = None
 
 
 class TMJSensitivityInput(BaseModel):

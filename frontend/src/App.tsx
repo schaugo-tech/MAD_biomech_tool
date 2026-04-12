@@ -7,7 +7,7 @@ import { fetchRecommendMeta, previewRecommend } from './utils/api'
 import type { FrontendInputs, RecommendV1Response } from './types'
 
 const defaultInputs: FrontendInputs = {
-  treatment_need: { ahi: 28, symptom_severity: 'moderate', complaint_strength: 'high' },
+  treatment_need: { ahi_band: '15to30' },
   tmj_sensitivity: { pain_vas: 3, joint_state: 'click', mouth_opening_state: 'normal' },
   periodontal: { mobility_state: 'stable', bone_loss_state: 'none' },
   occlusal_need: { deep_overbite: true, occlusal_interference: true, anterior_crossbite: false },

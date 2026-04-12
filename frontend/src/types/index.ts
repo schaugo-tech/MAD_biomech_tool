@@ -1,7 +1,5 @@
 export type TreatmentNeedInput = {
-  ahi?: number
-  symptom_severity?: 'mild' | 'moderate' | 'severe'
-  complaint_strength?: 'low' | 'medium' | 'high'
+  ahi_band?: 'lt5' | '5to15' | '15to30' | 'gt30'
 }
 
 export type TMJSensitivityInput = {

@@ -14,19 +14,12 @@ export default function ControlPanel({ inputs, loading, onInputsChange, onAnalyz
     <div className="control-stack">
       <PanelCard title="治疗需求强度（d）">
         <label className="field">
-          <span>AHI：{inputs.treatment_need.ahi ?? 28}</span>
-          <input type="range" min={5} max={60} step={1} value={inputs.treatment_need.ahi ?? 28} onChange={(e) => onInputsChange({ ...inputs, treatment_need: { ...inputs.treatment_need, ahi: Number(e.target.value) } })} />
-        </label>
-        <label className="field">
-          <span>症状严重度</span>
-          <select value={inputs.treatment_need.symptom_severity ?? 'moderate'} onChange={(e) => onInputsChange({ ...inputs, treatment_need: { ...inputs.treatment_need, symptom_severity: e.target.value as any } })}>
-            <option value="mild">mild</option><option value="moderate">moderate</option><option value="severe">severe</option>
-          </select>
-        </label>
-        <label className="field">
-          <span>主诉强度</span>
-          <select value={inputs.treatment_need.complaint_strength ?? 'medium'} onChange={(e) => onInputsChange({ ...inputs, treatment_need: { ...inputs.treatment_need, complaint_strength: e.target.value as any } })}>
-            <option value="low">low</option><option value="medium">medium</option><option value="high">high</option>
+          <span>AHI 次数（次/小时）</span>
+          <select value={inputs.treatment_need.ahi_band ?? '15to30'} onChange={(e) => onInputsChange({ ...inputs, treatment_need: { ...inputs.treatment_need, ahi_band: e.target.value as any } })}>
+            <option value="lt5">&lt; 5（无症状者无需干预）</option>
+            <option value="5to15">5 ~ 15</option>
+            <option value="15to30">15 ~ 30</option>
+            <option value="gt30">&gt; 30</option>
           </select>
         </label>
       </PanelCard>
